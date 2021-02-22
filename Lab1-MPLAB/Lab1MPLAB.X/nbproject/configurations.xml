@@ -4,11 +4,11 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
-      <itemPath>../../ECE4760-main/lab1/Lab1/config_1_3_2.h</itemPath>
-      <itemPath>../../ECE4760-main/lab1/Lab1/port_expander_brl4.h</itemPath>
-      <itemPath>../../ECE4760-main/lab1/Lab1/pt_cornell_1_3_2_python.h</itemPath>
-      <itemPath>../../ECE4760-main/lab1/Lab1/tft_gfx.h</itemPath>
-      <itemPath>../../ECE4760-main/lab1/Lab1/tft_master.h</itemPath>
+      <itemPath>../../lab1/Lab1/config_1_3_2.h</itemPath>
+      <itemPath>../../lab1/Lab1/port_expander_brl4.h</itemPath>
+      <itemPath>../../lab1/Lab1/pt_cornell_1_3_2_python.h</itemPath>
+      <itemPath>../../lab1/Lab1/tft_gfx.h</itemPath>
+      <itemPath>../../lab1/Lab1/tft_master.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -17,11 +17,10 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <itemPath>../../ECE4760-main/lab1/Lab1/SECABB_python_target_v4_1_3_2.c</itemPath>
-      <itemPath>../../ECE4760-main/lab1/Lab1/glcdfont.c</itemPath>
-      <itemPath>../../ECE4760-main/lab1/Lab1/port_expander_brl4.c</itemPath>
-      <itemPath>../../ECE4760-main/lab1/Lab1/tft_gfx.c</itemPath>
-      <itemPath>../../ECE4760-main/lab1/Lab1/tft_master.c</itemPath>
+      <itemPath>../../lab1/Lab1/glcdfont.c</itemPath>
+      <itemPath>../../lab1/Lab1/port_expander_brl4.c</itemPath>
+      <itemPath>../../lab1/Lab1/tft_gfx.c</itemPath>
+      <itemPath>../../lab1/Lab1/tft_master.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -31,6 +30,7 @@
   </logicalFolder>
   <sourceRootList>
     <Elem>../../ECE4760-main/lab1/Lab1</Elem>
+    <Elem>../../lab1/Lab1</Elem>
   </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
@@ -90,6 +90,40 @@
         <property key="use-iar" value="false"/>
         <property key="use-indirect-calls" value="false"/>
       </C32>
+      <C32-AR>
+        <property key="additional-options-chop-files" value="false"/>
+      </C32-AR>
+      <C32-LD>
+        <property key="additional-options-use-response-files" value="false"/>
+        <property key="enable-check-sections" value="false"/>
+        <property key="exclude-floating-point-library" value="false"/>
+        <property key="exclude-standard-libraries" value="false"/>
+        <property key="extra-lib-directories" value=""/>
+        <property key="fill-flash-options-addr" value=""/>
+        <property key="fill-flash-options-const" value=""/>
+        <property key="fill-flash-options-how" value="0"/>
+        <property key="fill-flash-options-inc-const" value="1"/>
+        <property key="fill-flash-options-increment" value=""/>
+        <property key="fill-flash-options-seq" value=""/>
+        <property key="fill-flash-options-what" value="0"/>
+        <property key="generate-16-bit-code" value="false"/>
+        <property key="generate-cross-reference-file" value="false"/>
+        <property key="generate-micro-compressed-code" value="false"/>
+        <property key="heap-size" value=""/>
+        <property key="input-libraries" value=""/>
+        <property key="linker-symbols" value=""/>
+        <property key="map-file" value="${DISTDIR}/${PROJECTNAME}.${IMAGE_TYPE}.map"/>
+        <property key="no-startup-files" value="false"/>
+        <property key="oXC32ld-extra-opts" value=""/>
+        <property key="optimization-level" value=""/>
+        <property key="preprocessor-macros" value=""/>
+        <property key="remove-unused-sections" value="false"/>
+        <property key="report-memory-usage" value="false"/>
+        <property key="stack-size" value=""/>
+        <property key="symbol-stripping" value=""/>
+        <property key="trace-symbols" value=""/>
+        <property key="warn-section-align" value="false"/>
+      </C32-LD>
       <C32CPP>
         <property key="additional-warnings" value="false"/>
         <property key="check-new" value="false"/>
@@ -124,6 +158,9 @@
         <property key="save-temps" value="false"/>
         <property key="wpo-lto" value="false"/>
       </C32Global>
+      <PKOBSKDEPlatformTool>
+        <property key="firmware.download.all" value="false"/>
+      </PKOBSKDEPlatformTool>
     </conf>
   </confs>
 </configurationDescriptor>

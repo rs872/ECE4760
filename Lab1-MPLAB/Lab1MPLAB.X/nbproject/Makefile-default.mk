@@ -45,17 +45,17 @@ OBJECTDIR=build/${CND_CONF}/${IMAGE_TYPE}
 DISTDIR=dist/${CND_CONF}/${IMAGE_TYPE}
 
 # Source Files Quoted if spaced
-SOURCEFILES_QUOTED_IF_SPACED=../../ECE4760-main/lab1/Lab1/SECABB_python_target_v4_1_3_2.c ../../ECE4760-main/lab1/Lab1/glcdfont.c ../../ECE4760-main/lab1/Lab1/port_expander_brl4.c ../../ECE4760-main/lab1/Lab1/tft_gfx.c ../../ECE4760-main/lab1/Lab1/tft_master.c
+SOURCEFILES_QUOTED_IF_SPACED=../../lab1/Lab1/glcdfont.c ../../lab1/Lab1/port_expander_brl4.c ../../lab1/Lab1/tft_gfx.c ../../lab1/Lab1/tft_master.c
 
 # Object Files Quoted if spaced
-OBJECTFILES_QUOTED_IF_SPACED=${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o ${OBJECTDIR}/_ext/1327881054/glcdfont.o ${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o ${OBJECTDIR}/_ext/1327881054/tft_gfx.o ${OBJECTDIR}/_ext/1327881054/tft_master.o
-POSSIBLE_DEPFILES=${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o.d ${OBJECTDIR}/_ext/1327881054/glcdfont.o.d ${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o.d ${OBJECTDIR}/_ext/1327881054/tft_gfx.o.d ${OBJECTDIR}/_ext/1327881054/tft_master.o.d
+OBJECTFILES_QUOTED_IF_SPACED=${OBJECTDIR}/_ext/25193903/glcdfont.o ${OBJECTDIR}/_ext/25193903/port_expander_brl4.o ${OBJECTDIR}/_ext/25193903/tft_gfx.o ${OBJECTDIR}/_ext/25193903/tft_master.o
+POSSIBLE_DEPFILES=${OBJECTDIR}/_ext/25193903/glcdfont.o.d ${OBJECTDIR}/_ext/25193903/port_expander_brl4.o.d ${OBJECTDIR}/_ext/25193903/tft_gfx.o.d ${OBJECTDIR}/_ext/25193903/tft_master.o.d
 
 # Object Files
-OBJECTFILES=${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o ${OBJECTDIR}/_ext/1327881054/glcdfont.o ${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o ${OBJECTDIR}/_ext/1327881054/tft_gfx.o ${OBJECTDIR}/_ext/1327881054/tft_master.o
+OBJECTFILES=${OBJECTDIR}/_ext/25193903/glcdfont.o ${OBJECTDIR}/_ext/25193903/port_expander_brl4.o ${OBJECTDIR}/_ext/25193903/tft_gfx.o ${OBJECTDIR}/_ext/25193903/tft_master.o
 
 # Source Files
-SOURCEFILES=../../ECE4760-main/lab1/Lab1/SECABB_python_target_v4_1_3_2.c ../../ECE4760-main/lab1/Lab1/glcdfont.c ../../ECE4760-main/lab1/Lab1/port_expander_brl4.c ../../ECE4760-main/lab1/Lab1/tft_gfx.c ../../ECE4760-main/lab1/Lab1/tft_master.c
+SOURCEFILES=../../lab1/Lab1/glcdfont.c ../../lab1/Lab1/port_expander_brl4.c ../../lab1/Lab1/tft_gfx.c ../../lab1/Lab1/tft_master.c
 
 
 CFLAGS=
@@ -94,66 +94,54 @@ endif
 # ------------------------------------------------------------------------------------
 # Rules for buildStep: compile
 ifeq ($(TYPE_IMAGE), DEBUG_RUN)
-${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o: ../../ECE4760-main/lab1/Lab1/SECABB_python_target_v4_1_3_2.c  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/1327881054" 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o.d 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o 
-	@${FIXDEPS} "${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o.d" -o ${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o ../../ECE4760-main/lab1/Lab1/SECABB_python_target_v4_1_3_2.c   
+${OBJECTDIR}/_ext/25193903/glcdfont.o: ../../lab1/Lab1/glcdfont.c  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/_ext/25193903" 
+	@${RM} ${OBJECTDIR}/_ext/25193903/glcdfont.o.d 
+	@${RM} ${OBJECTDIR}/_ext/25193903/glcdfont.o 
+	@${FIXDEPS} "${OBJECTDIR}/_ext/25193903/glcdfont.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/25193903/glcdfont.o.d" -o ${OBJECTDIR}/_ext/25193903/glcdfont.o ../../lab1/Lab1/glcdfont.c   
 	
-${OBJECTDIR}/_ext/1327881054/glcdfont.o: ../../ECE4760-main/lab1/Lab1/glcdfont.c  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/1327881054" 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/glcdfont.o.d 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/glcdfont.o 
-	@${FIXDEPS} "${OBJECTDIR}/_ext/1327881054/glcdfont.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/1327881054/glcdfont.o.d" -o ${OBJECTDIR}/_ext/1327881054/glcdfont.o ../../ECE4760-main/lab1/Lab1/glcdfont.c   
+${OBJECTDIR}/_ext/25193903/port_expander_brl4.o: ../../lab1/Lab1/port_expander_brl4.c  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/_ext/25193903" 
+	@${RM} ${OBJECTDIR}/_ext/25193903/port_expander_brl4.o.d 
+	@${RM} ${OBJECTDIR}/_ext/25193903/port_expander_brl4.o 
+	@${FIXDEPS} "${OBJECTDIR}/_ext/25193903/port_expander_brl4.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/25193903/port_expander_brl4.o.d" -o ${OBJECTDIR}/_ext/25193903/port_expander_brl4.o ../../lab1/Lab1/port_expander_brl4.c   
 	
-${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o: ../../ECE4760-main/lab1/Lab1/port_expander_brl4.c  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/1327881054" 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o.d 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o 
-	@${FIXDEPS} "${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o.d" -o ${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o ../../ECE4760-main/lab1/Lab1/port_expander_brl4.c   
+${OBJECTDIR}/_ext/25193903/tft_gfx.o: ../../lab1/Lab1/tft_gfx.c  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/_ext/25193903" 
+	@${RM} ${OBJECTDIR}/_ext/25193903/tft_gfx.o.d 
+	@${RM} ${OBJECTDIR}/_ext/25193903/tft_gfx.o 
+	@${FIXDEPS} "${OBJECTDIR}/_ext/25193903/tft_gfx.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/25193903/tft_gfx.o.d" -o ${OBJECTDIR}/_ext/25193903/tft_gfx.o ../../lab1/Lab1/tft_gfx.c   
 	
-${OBJECTDIR}/_ext/1327881054/tft_gfx.o: ../../ECE4760-main/lab1/Lab1/tft_gfx.c  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/1327881054" 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/tft_gfx.o.d 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/tft_gfx.o 
-	@${FIXDEPS} "${OBJECTDIR}/_ext/1327881054/tft_gfx.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/1327881054/tft_gfx.o.d" -o ${OBJECTDIR}/_ext/1327881054/tft_gfx.o ../../ECE4760-main/lab1/Lab1/tft_gfx.c   
-	
-${OBJECTDIR}/_ext/1327881054/tft_master.o: ../../ECE4760-main/lab1/Lab1/tft_master.c  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/1327881054" 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/tft_master.o.d 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/tft_master.o 
-	@${FIXDEPS} "${OBJECTDIR}/_ext/1327881054/tft_master.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/1327881054/tft_master.o.d" -o ${OBJECTDIR}/_ext/1327881054/tft_master.o ../../ECE4760-main/lab1/Lab1/tft_master.c   
+${OBJECTDIR}/_ext/25193903/tft_master.o: ../../lab1/Lab1/tft_master.c  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/_ext/25193903" 
+	@${RM} ${OBJECTDIR}/_ext/25193903/tft_master.o.d 
+	@${RM} ${OBJECTDIR}/_ext/25193903/tft_master.o 
+	@${FIXDEPS} "${OBJECTDIR}/_ext/25193903/tft_master.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/25193903/tft_master.o.d" -o ${OBJECTDIR}/_ext/25193903/tft_master.o ../../lab1/Lab1/tft_master.c   
 	
 else
-${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o: ../../ECE4760-main/lab1/Lab1/SECABB_python_target_v4_1_3_2.c  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/1327881054" 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o.d 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o 
-	@${FIXDEPS} "${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o.d" -o ${OBJECTDIR}/_ext/1327881054/SECABB_python_target_v4_1_3_2.o ../../ECE4760-main/lab1/Lab1/SECABB_python_target_v4_1_3_2.c   
+${OBJECTDIR}/_ext/25193903/glcdfont.o: ../../lab1/Lab1/glcdfont.c  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/_ext/25193903" 
+	@${RM} ${OBJECTDIR}/_ext/25193903/glcdfont.o.d 
+	@${RM} ${OBJECTDIR}/_ext/25193903/glcdfont.o 
+	@${FIXDEPS} "${OBJECTDIR}/_ext/25193903/glcdfont.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/25193903/glcdfont.o.d" -o ${OBJECTDIR}/_ext/25193903/glcdfont.o ../../lab1/Lab1/glcdfont.c   
 	
-${OBJECTDIR}/_ext/1327881054/glcdfont.o: ../../ECE4760-main/lab1/Lab1/glcdfont.c  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/1327881054" 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/glcdfont.o.d 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/glcdfont.o 
-	@${FIXDEPS} "${OBJECTDIR}/_ext/1327881054/glcdfont.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/1327881054/glcdfont.o.d" -o ${OBJECTDIR}/_ext/1327881054/glcdfont.o ../../ECE4760-main/lab1/Lab1/glcdfont.c   
+${OBJECTDIR}/_ext/25193903/port_expander_brl4.o: ../../lab1/Lab1/port_expander_brl4.c  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/_ext/25193903" 
+	@${RM} ${OBJECTDIR}/_ext/25193903/port_expander_brl4.o.d 
+	@${RM} ${OBJECTDIR}/_ext/25193903/port_expander_brl4.o 
+	@${FIXDEPS} "${OBJECTDIR}/_ext/25193903/port_expander_brl4.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/25193903/port_expander_brl4.o.d" -o ${OBJECTDIR}/_ext/25193903/port_expander_brl4.o ../../lab1/Lab1/port_expander_brl4.c   
 	
-${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o: ../../ECE4760-main/lab1/Lab1/port_expander_brl4.c  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/1327881054" 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o.d 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o 
-	@${FIXDEPS} "${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o.d" -o ${OBJECTDIR}/_ext/1327881054/port_expander_brl4.o ../../ECE4760-main/lab1/Lab1/port_expander_brl4.c   
+${OBJECTDIR}/_ext/25193903/tft_gfx.o: ../../lab1/Lab1/tft_gfx.c  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/_ext/25193903" 
+	@${RM} ${OBJECTDIR}/_ext/25193903/tft_gfx.o.d 
+	@${RM} ${OBJECTDIR}/_ext/25193903/tft_gfx.o 
+	@${FIXDEPS} "${OBJECTDIR}/_ext/25193903/tft_gfx.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/25193903/tft_gfx.o.d" -o ${OBJECTDIR}/_ext/25193903/tft_gfx.o ../../lab1/Lab1/tft_gfx.c   
 	
-${OBJECTDIR}/_ext/1327881054/tft_gfx.o: ../../ECE4760-main/lab1/Lab1/tft_gfx.c  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/1327881054" 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/tft_gfx.o.d 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/tft_gfx.o 
-	@${FIXDEPS} "${OBJECTDIR}/_ext/1327881054/tft_gfx.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/1327881054/tft_gfx.o.d" -o ${OBJECTDIR}/_ext/1327881054/tft_gfx.o ../../ECE4760-main/lab1/Lab1/tft_gfx.c   
-	
-${OBJECTDIR}/_ext/1327881054/tft_master.o: ../../ECE4760-main/lab1/Lab1/tft_master.c  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/1327881054" 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/tft_master.o.d 
-	@${RM} ${OBJECTDIR}/_ext/1327881054/tft_master.o 
-	@${FIXDEPS} "${OBJECTDIR}/_ext/1327881054/tft_master.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/1327881054/tft_master.o.d" -o ${OBJECTDIR}/_ext/1327881054/tft_master.o ../../ECE4760-main/lab1/Lab1/tft_master.c   
+${OBJECTDIR}/_ext/25193903/tft_master.o: ../../lab1/Lab1/tft_master.c  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/_ext/25193903" 
+	@${RM} ${OBJECTDIR}/_ext/25193903/tft_master.o.d 
+	@${RM} ${OBJECTDIR}/_ext/25193903/tft_master.o 
+	@${FIXDEPS} "${OBJECTDIR}/_ext/25193903/tft_master.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/_ext/25193903/tft_master.o.d" -o ${OBJECTDIR}/_ext/25193903/tft_master.o ../../lab1/Lab1/tft_master.c   
 	
 endif
 

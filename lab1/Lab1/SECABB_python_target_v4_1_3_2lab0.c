@@ -47,7 +47,7 @@
 //== Timer 2 interrupt handler ===========================================
 // direct digital synthesis of sine wave
 #define two32 4294967296.0 // 2^32 
-#define Fs 44000
+#define Fs 40000
 #define WAIT {}
 // DAC ISR
 // A-channel, 1x, active
@@ -59,73 +59,35 @@ volatile unsigned int DAC_data ;// output value
 volatile SpiChannel spiChn = SPI_CHANNEL2 ;	// the SPI channel to use
 volatile int spiClkDiv = 2 ; // 20 MHz max speed for DAC!!
 // the DDS units:
-volatile unsigned int phase_accum_main = 0;
-volatile float phase_incr_mult = two32/Fs ;//multiplier for DDS accum increment
-//swoop accumulator variables;
-volatile unsigned int swoop_accum_main, swoop_accum_inc = (M_PI/5720)*(two32/Fs);
-volatile unsigned int chirp_accum_main = 2000;
-
+volatile unsigned int phase_accum_main, phase_incr_main=440.0*two32/Fs ;//
 // DDS sine table
 #define sine_table_size 256
-volatile int sin_table[sine_table_size] ;
+volatile int sin_table[sine_table_size][3] ;
 // the dds state controlled by python interface
-volatile int dds_state = 0;
+volatile int dds_state = 1;
 // the voltage specifed from python
 volatile float V_data = 0;
-// sine
+// sine, sq, tri
 volatile char wave_type = 0 ;
 
-volatile int isr_counter = 5720;
-
-volatile _Accum curr_amplitude = 0;
-
-float swoop(int x);
-float chirp(int x);
-
-//5720 interrupts for 130 ms at 44kHz
 void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
 {
     // you MUST clear the ISR flag
     mT2ClearIntFlag();
-    if(dds_state == 0) phase_accum_main -= phase_incr_mult * swoop(isr_counter)  ;
-    else if(dds_state == 1){ 
-        chirp_accum_main += chirp(isr_counter);
-        phase_accum_main += phase_incr_mult * chirp_accum_main;
-    }
-
+    
     //  DDS phase and sine table lookup
-    //Isr counter- how far in time i am into this sound, used to see the phase increment
-    DAC_data = sin_table[phase_accum_main>>24]; //take the 32 bit accum, and use the top 8 bits to index the sine table
+    phase_accum_main += phase_incr_main  ;
+    DAC_data = sin_table[phase_accum_main>>24][wave_type]  ;
  
     // === DAC Channel A =============
     // wait for possible port expander transactions to complete
-    
     // CS low to start transaction
      mPORTBClearBits(BIT_4); // start transaction
-     if (isr_counter< 1000) {
-         curr_amplitude = (float) isr_counter/1000;
-     }
-     else if (isr_counter < 4720) {
-         curr_amplitude = 1;
-     }
-     else if (isr_counter > 4720) {
-         curr_amplitude = 1 - ((float) isr_counter - 4720)/1000;
-     }
-     else {
-         curr_amplitude = 0;
-     }
-     
-     DAC_data = (int) DAC_data * curr_amplitude;
-//     DAC_data *= curr_amplitude;
     // write to spi2 
-    if (isr_counter < 5720) {
-        WriteSPI2( DAC_config_chan_A | ((DAC_data + 2048) & 0xfff));//12 bit DAC- can take values from 0 to 2^12 which is 4096. 
-        //At last moment before sending to DAC- go to range 0 to 4096 since DAC expects unsigned values not -2048 to +2048
-        isr_counter++;
-    }
+    if (dds_state==1)
+        WriteSPI2( DAC_config_chan_A | ((DAC_data + 2048) & 0xfff));
     else
-        WriteSPI2( DAC_config_chan_A | ((int)(2048) & 0xfff));
-
+        WriteSPI2( DAC_config_chan_A | ((int)(V_data) & 0xfff));
     while (SPI2STATbits.SPIBUSY) WAIT; // wait for end of transaction
      // CS high
     mPORTBSetBits(BIT_4) ; // end transaction
@@ -194,7 +156,7 @@ static PT_THREAD (protothread_python_string(struct pt *pt))
         if (receive_string[0] == 'f'){
             // dds frequency
             sscanf(receive_string+1, "%d", &dds_freq);
-            //phase_incr_main = (float)dds_freq * two32/Fs ;
+            phase_incr_main = (float)dds_freq * two32/Fs ;
             printf("freq=%d\r", dds_freq);
         }
         //
@@ -238,20 +200,13 @@ static PT_THREAD (protothread_buttons(struct pt *pt))
         // clear flag
         new_button = 0;   
         // Button one -- control the LED on the big board
-        if (button_id==1 && button_value==1) {
+        if (button_id==1 && button_value==1)
             mPORTASetBits(BIT_0); 
-            isr_counter = 0;
-            dds_state = 0; //swoop
-        }
+        else if (button_id==1 && button_value==0)
+            mPORTAClearBits(BIT_0); 
         // Button 2 -- clear TFT
-        if (button_id==2 && button_value==1) {
-            isr_counter = 0;
-            dds_state = 1; //chirp
-            tft_fillScreen(ILI9340_BLACK);
-        }
-        if (button_id == 3 && button_value == 1) {
-            isr_counter = 0;
-        }
+        if (button_id==2 && button_value==1)
+            tft_fillScreen(ILI9340_BLACK);          
     } // END WHILE(1)   
     PT_END(pt);  
 } // thread blink
@@ -290,7 +245,40 @@ static PT_THREAD (protothread_toggles(struct pt *pt))
     PT_END(pt);  
 } // thread toggles
 
-
+// ===  Slider thread =========================================================
+// process slider from Python to draw a shor tline on LCD
+static PT_THREAD (protothread_sliders(struct pt *pt))
+{
+    PT_BEGIN(pt);
+    static short line_x = 0;
+    tft_drawFastVLine(line_x, 10, 30, ILI9340_WHITE);
+    tft_drawFastVLine(line_x+1, 10, 30, ILI9340_WHITE);
+    while(1){
+        PT_YIELD_UNTIL(pt, new_slider==1);
+        // clear flag
+        new_slider = 0; 
+        if (slider_id == 1){
+            // erase old line
+            //tft_drawLine(line_x, 10, line_x, 40, ILI9340_BLACK);
+            tft_drawFastVLine(line_x, 10, 30, ILI9340_BLACK);
+            tft_drawFastVLine(line_x+1, 10, 30, ILI9340_BLACK);
+            // draw a white line at the x value of the slider
+            line_x = (int)slider_value ;
+            //tft_drawLine(line_x, 10, line_x, 40, ILI9340_WHITE);
+             tft_drawFastVLine(line_x, 10, 30, ILI9340_WHITE);
+             tft_drawFastVLine(line_x+1, 10, 30, ILI9340_WHITE);
+        }
+        
+        if (slider_id==2 ){
+            phase_incr_main = (float)slider_value * two32/Fs ;
+        }
+        if (slider_id==3 ){
+            //phase_incr_main = (float)slider_value * two32/Fs ;
+            V_data = (int)(slider_value * 2000) ;
+        }
+    } // END WHILE(1)   
+    PT_END(pt);  
+} // thread slider
 
 // ===  listbox thread =========================================================
 // process listbox from Python to set DDS waveform
@@ -308,7 +296,26 @@ static PT_THREAD (protothread_listbox(struct pt *pt))
     PT_END(pt);  
 } // thread listbox
 
-
+// ===  radio thread =========================================================
+// process listbox from Python to set DDS waveform
+static PT_THREAD (protothread_radio(struct pt *pt))
+{
+    PT_BEGIN(pt);
+    while(1){
+        PT_YIELD_UNTIL(pt, new_radio==1);
+        // clear flag
+        new_radio = 0; 
+        if (radio_group_id == 1){
+            if (radio_member_id == 1){
+                dds_state = 1 ;
+            }
+            if (radio_member_id == 2){
+                dds_state = 0 ;
+            }
+        }
+    } // END WHILE(1)   
+    PT_END(pt);  
+} // thread radio
 
 // === Python serial thread ====================================================
 // you should not need to change this thread UNLESS you add new control types
@@ -334,7 +341,6 @@ static PT_THREAD (protothread_serial(struct pt *pt))
         PT_terminate_char = '\r' ; 
         PT_terminate_count = 0 ; 
         PT_terminate_time = 0 ;
-        printf("hi there");
         // note that there will NO visual feedback using the following function
         PT_SPAWN(pt, &pt_input, PT_GetMachineBuffer(&pt_input) );
         
@@ -402,7 +408,6 @@ void main(void) {
     // Set up timer2 on,  interrupts, internal clock, prescalar 1, toggle rate
     #define TIMEOUT (40000000/Fs) // clock rate / sample rate
     // 2000 is 20 ksamp/sec
-    printf("in main");
     OpenTimer2(T2_ON | T2_SOURCE_INT | T2_PS_1_1, TIMEOUT);
 
     // set up the timer interrupt with a priority of 2
@@ -425,7 +430,9 @@ void main(void) {
    // scaled to produce values between 0 and 4096
    int ii;
    for (ii = 0; ii < sine_table_size; ii++){
-         sin_table[ii] = (int)(2047*sin((float)ii*6.283/(float)sine_table_size)); //sine table
+         sin_table[ii][0] = (int)(2047*sin((float)ii*6.283/(float)sine_table_size));
+         sin_table[ii][1] = (int) (ii<128)? 2047 : -2047 ;
+         sin_table[ii][2] = (int) (ii<128)? -2047+ii*4096/(sine_table_size/2) : 2047- (ii-128)*4096/(sine_table_size/2) ;;
     }
  
     // === setup system wide interrupts  ========
@@ -453,7 +460,9 @@ void main(void) {
   pt_add(protothread_serial, 0);
   pt_add(protothread_python_string, 0);
   pt_add(protothread_toggles, 0);
+  pt_add(protothread_sliders, 0);
   pt_add(protothread_listbox, 0);
+  pt_add(protothread_radio, 0);
   
   // === initalize the scheduler ====================
   PT_INIT(&pt_sched) ;
@@ -474,15 +483,5 @@ void main(void) {
   // ============================================
   
 } // main
-
-
-inline float swoop(int x){
-    swoop_accum_main += swoop_accum_inc * x;
-    return -260 * sin_table[swoop_accum_main>>24] + 1740;
-}
-
-inline float chirp(int x){
-    return 3.06E-4 * x;
-}
 // === end  ======================================================
 
