@@ -55,25 +55,27 @@
 // B-channel, 1x, active
 #define DAC_config_chan_B 0b1011000000000000
 //
-volatile unsigned int DAC_data ;// output value
+volatile int DAC_data ;// output value
 volatile SpiChannel spiChn = SPI_CHANNEL2 ;	// the SPI channel to use
 volatile int spiClkDiv = 2 ; // 20 MHz max speed for DAC!!
-// the DDS units:
-volatile unsigned int phase_accum_main = 0;
+volatile unsigned int phase_accum_main = 0;//N (main accumulator)
 volatile float phase_incr_mult = two32/Fs ;//multiplier for DDS accum increment
-//swoop accumulator variables;
-volatile unsigned int swoop_accum_main, swoop_accum_inc = (M_PI/5720)*(two32/Fs);
-volatile unsigned int chirp_accum_main = 2000;
+volatile float swoop_factor = (M_PI/5720);//factor used inside sin function
+volatile unsigned int chirp_freq = 2000;//The constant factor of the integrator
+
+volatile char record_array[50]; //Array to store states when record toggle is pressed
+volatile unsigned char record_index = 0; 
+volatile unsigned char playback_index = 0;
+volatile unsigned char playback_flag = 1;
+volatile unsigned char sound_flag = 1;
+
+
 
 // DDS sine table
 #define sine_table_size 256
 volatile int sin_table[sine_table_size] ;
 // the dds state controlled by python interface
 volatile int dds_state = 0;
-// the voltage specifed from python
-volatile float V_data = 0;
-// sine
-volatile char wave_type = 0 ;
 
 volatile int isr_counter = 5720;
 
@@ -87,10 +89,13 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
 {
     // you MUST clear the ISR flag
     mT2ClearIntFlag();
-    if(dds_state == 0) phase_accum_main -= phase_incr_mult * swoop(isr_counter)  ;
-    else if(dds_state == 1){ 
-        chirp_accum_main += chirp(isr_counter);
-        phase_accum_main += phase_incr_mult * chirp_accum_main;
+    if (dds_state == 0 && isr_counter < 5720){ 
+        phase_accum_main += (int)(phase_incr_mult * swoop(isr_counter));
+    }
+    
+    else if(dds_state == 1 && isr_counter < 5720){ 
+        chirp_freq += chirp(isr_counter);
+        phase_accum_main += (int)(chirp_freq * phase_incr_mult);
     }
 
     //  DDS phase and sine table lookup
@@ -101,31 +106,42 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
     // wait for possible port expander transactions to complete
     
     // CS low to start transaction
+    
      mPORTBClearBits(BIT_4); // start transaction
+     
+     //Envelope
      if (isr_counter< 1000) {
-         curr_amplitude = (float) isr_counter/1000;
+         curr_amplitude = (float) isr_counter * 0.001;
      }
-     else if (isr_counter < 4720) {
+     else if (isr_counter < 5720) {
          curr_amplitude = 1;
      }
-     else if (isr_counter > 4720) {
-         curr_amplitude = 1 - ((float) isr_counter - 4720)/1000;
+     else if (isr_counter > 5720) {
+         curr_amplitude = 1 - ((float) isr_counter - 4720) * 0.001;
      }
      else {
          curr_amplitude = 0;
      }
      
-     DAC_data = (int) DAC_data * curr_amplitude;
-//     DAC_data *= curr_amplitude;
-    // write to spi2 
-    if (isr_counter < 5720) {
-        WriteSPI2( DAC_config_chan_A | ((DAC_data + 2048) & 0xfff));//12 bit DAC- can take values from 0 to 2^12 which is 4096. 
-        //At last moment before sending to DAC- go to range 0 to 4096 since DAC expects unsigned values not -2048 to +2048
+     DAC_data = (int) (DAC_data * curr_amplitude);
+    
+    if (isr_counter < 5720) { //Increment ISR
         isr_counter++;
+        if (dds_state < 2){
+            WriteSPI2( DAC_config_chan_A | ((DAC_data + 2048) & 0xfff));//12 bit DAC- can take values from 0 to 2^12 which is 4096.
+        //At last moment before sending to DAC- go to range 0 to 4096 since DAC expects unsigned values not -2048 to +2048
+        }
+        else{
+            WriteSPI2( DAC_config_chan_A | (2048 & 0xfff));
+        }
     }
-    else
-        WriteSPI2( DAC_config_chan_A | ((int)(2048) & 0xfff));
-
+    else{ //No sound playing
+        WriteSPI2( DAC_config_chan_A | (2048 & 0xfff));
+        chirp_freq = 2000; //Reset condition for chirp (integrator)
+        sound_flag = 1;
+    }
+     
+    
     while (SPI2STATbits.SPIBUSY) WAIT; // wait for end of transaction
      // CS high
     mPORTBSetBits(BIT_4) ; // end transaction
@@ -198,13 +214,7 @@ static PT_THREAD (protothread_python_string(struct pt *pt))
             printf("freq=%d\r", dds_freq);
         }
         //
-        else if (receive_string[0] == 'v'){
-            // DAC voltage
-            sscanf(receive_string+1, "%f", &V_data);
-            printf("V=%f\r", V_data);
-            // 
-            V_data = (int)(V_data*2000) ;
-        }
+
         //
         else if (receive_string[0] == 'h'){
             // dds frequency
@@ -239,30 +249,40 @@ static PT_THREAD (protothread_buttons(struct pt *pt))
         new_button = 0;   
         // Button one -- control the LED on the big board
         if (button_id==1 && button_value==1) {
-            mPORTASetBits(BIT_0); 
+//            mPORTASetBits(BIT_0); 
             isr_counter = 0;
             dds_state = 0; //swoop
+            if (toggle_value == 1 && record_index < 49){
+                record_array[record_index] = dds_state;
+                record_index++;
+            }
         }
         // Button 2 -- clear TFT
         if (button_id==2 && button_value==1) {
             isr_counter = 0;
             dds_state = 1; //chirp
-            tft_fillScreen(ILI9340_BLACK);
+            if (toggle_value == 1 && record_index < 49){
+                record_array[record_index] = dds_state;
+                record_index++;
+            }
+//            tft_fillScreen(ILI9340_BLACK);
         }
         if (button_id == 3 && button_value == 1) {
             isr_counter = 0;
+            dds_state = 2;
+            if (toggle_value == 1 && record_index < 49){
+                record_array[record_index] = dds_state;
+                record_index++;
+            }
         }
     } // END WHILE(1)   
     PT_END(pt);  
 } // thread blink
 
 // === Toggle thread ==========================================================
-// process toggle from Python to change a dot color on the LCD
 static PT_THREAD (protothread_toggles(struct pt *pt))
 {
     PT_BEGIN(pt);
-    static short circle_color = ILI9340_RED;
-    //
     while(1){
         // this threaqd does a periodic redraw in case the dot is erased
         PT_YIELD_TIME_msec(100)
@@ -270,45 +290,39 @@ static PT_THREAD (protothread_toggles(struct pt *pt))
         if (new_toggle == 1){
             // clear toggle flag
             new_toggle = 0;   
-            // Toggle one -- put a  green makrer on screen
             if (toggle_id==1 && toggle_value==1){
-                tft_fillCircle(160, 30, 10, ILI9340_GREEN);
-                circle_color = ILI9340_GREEN;
+                playback_flag = 0;
+                playback_index = 0;
+                record_index = 0;
             }
-            // toggle 0 -- put a red dot on the screen
             else if (toggle_id==1 && toggle_value==0){
-                tft_fillCircle(160, 30, 10, ILI9340_RED); 
-                circle_color = ILI9340_RED;
+                playback_flag = 1;
             }
            
         } // end new toggle
-        // redraw if no new event
-        if (new_toggle == 0 && circle_color != ILI9340_BLACK){
-            tft_fillCircle(160, 30, 10, circle_color);       
-        }
+
     } // END WHILE(1)   
     PT_END(pt);  
 } // thread toggles
 
-
-
-// ===  listbox thread =========================================================
-// process listbox from Python to set DDS waveform
-static PT_THREAD (protothread_listbox(struct pt *pt))
+// === Playback thread ==========================================================
+static PT_THREAD (protothread_playback(struct pt *pt))
 {
     PT_BEGIN(pt);
     while(1){
-        PT_YIELD_UNTIL(pt, new_list==1);
-        // clear flag
-        new_list = 0; 
-        if (list_id == 1){
-            wave_type = list_value ;
-        }
+        PT_YIELD_UNTIL(pt, playback_flag == 1 && playback_index != record_index);
+        
+        if (sound_flag == 1){
+            dds_state = record_array[playback_index];
+            isr_counter = 0;
+            playback_index++;
+            sound_flag = 0;
+            printf("%d\n", dds_state );
+       
+        }     
     } // END WHILE(1)   
     PT_END(pt);  
-} // thread listbox
-
-
+} // thread toggles
 
 // === Python serial thread ====================================================
 // you should not need to change this thread UNLESS you add new control types
@@ -334,7 +348,7 @@ static PT_THREAD (protothread_serial(struct pt *pt))
         PT_terminate_char = '\r' ; 
         PT_terminate_count = 0 ; 
         PT_terminate_time = 0 ;
-        printf("hi there");
+
         // note that there will NO visual feedback using the following function
         PT_SPAWN(pt, &pt_input, PT_GetMachineBuffer(&pt_input) );
         
@@ -453,7 +467,7 @@ void main(void) {
   pt_add(protothread_serial, 0);
   pt_add(protothread_python_string, 0);
   pt_add(protothread_toggles, 0);
-  pt_add(protothread_listbox, 0);
+  pt_add(protothread_playback, 0);
   
   // === initalize the scheduler ====================
   PT_INIT(&pt_sched) ;
@@ -477,8 +491,7 @@ void main(void) {
 
 
 inline float swoop(int x){
-    swoop_accum_main += swoop_accum_inc * x;
-    return -260 * sin_table[swoop_accum_main>>24] + 1740;
+    return 260 * sin(swoop_factor*x) + 1740;
 }
 
 inline float chirp(int x){
