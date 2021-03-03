@@ -138,7 +138,7 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
     else{ //No sound playing
         WriteSPI2( DAC_config_chan_A | (2048 & 0xfff));
         chirp_freq = 2000; //Reset condition for chirp (integrator)
-        sound_flag = 1;
+        sound_flag = 1; //Allows playback thread to get to next DDS state which resets isr_counter
     }
      
     
@@ -284,19 +284,17 @@ static PT_THREAD (protothread_toggles(struct pt *pt))
 {
     PT_BEGIN(pt);
     while(1){
-        // this threaqd does a periodic redraw in case the dot is erased
         PT_YIELD_TIME_msec(100)
-        //update dot color if toggle changed
         if (new_toggle == 1){
             // clear toggle flag
             new_toggle = 0;   
             if (toggle_id==1 && toggle_value==1){
-                playback_flag = 0;
-                playback_index = 0;
-                record_index = 0;
+                playback_flag = 0; //Restricts playback thread
+                playback_index = 0; //Makes sure playback index is ready at 0
+                record_index = 0; ////Makes sure recorded values start from index 0
             }
             else if (toggle_id==1 && toggle_value==0){
-                playback_flag = 1;
+                playback_flag = 1; //ALlows playback thread to start running
             }
            
         } // end new toggle
@@ -310,19 +308,19 @@ static PT_THREAD (protothread_playback(struct pt *pt))
 {
     PT_BEGIN(pt);
     while(1){
-        PT_YIELD_UNTIL(pt, playback_flag == 1 && playback_index != record_index);
+        
+        //Playback flag is set when toggle_value = 0, i.e toggle is checked off, to play recorded noises
+        PT_YIELD_UNTIL(pt, playback_flag == 1 && playback_index != record_index); 
         
         if (sound_flag == 1){
             dds_state = record_array[playback_index];
-            isr_counter = 0;
-            playback_index++;
-            sound_flag = 0;
-            printf("%d\n", dds_state );
-       
+            isr_counter = 0; //So that every time we wanna play a sound, the ISR can measure the 130ms 
+            playback_index++; 
+            sound_flag = 0; // A flag to make sure that we enter this thread only once a recorded sound is completed        
         }     
-    } // END WHILE(1)   
+    }    
     PT_END(pt);  
-} // thread toggles
+} 
 
 // === Python serial thread ====================================================
 // you should not need to change this thread UNLESS you add new control types
