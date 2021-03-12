@@ -1,7 +1,7 @@
 /*
- * File:        Python control prototype
+ * File:        Bird Chirp Synthesizer
  *             
- * Author:      Bruce Land
+ * Author:      Ragav Kumar, Rishi Singhal, and William Salcedo
  * For use with Sean Carroll's Big Board
  * http://people.ece.cornell.edu/land/courses/ece4760/PIC32/target_board.html
  * Target PIC:  PIC32MX250F128B
