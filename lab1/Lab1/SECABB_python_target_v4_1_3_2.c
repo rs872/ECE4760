@@ -1,7 +1,7 @@
 /*
- * File:        Python control prototype
+ * File:        Bird Chirp Synthesizer
  *             
- * Author:      Bruce Land
+ * Author:      Ragav Kumar, Rishi Singhal, and William Salcedo
  * For use with Sean Carroll's Big Board
  * http://people.ece.cornell.edu/land/courses/ece4760/PIC32/target_board.html
  * Target PIC:  PIC32MX250F128B
@@ -64,10 +64,10 @@ volatile float swoop_factor = (M_PI/5720);//factor used inside sin function
 volatile unsigned int chirp_freq = 2000;//The constant factor of the integrator
 
 volatile char record_array[50]; //Array to store states when record toggle is pressed
-volatile unsigned char record_index = 0; 
-volatile unsigned char playback_index = 0;
-volatile unsigned char playback_flag = 1;
-volatile unsigned char sound_flag = 1;
+volatile unsigned char record_index = 0; //State variable indicating what position the last entry of the record_array is
+volatile unsigned char playback_index = 0; //State variable indicating how many of the recorded sounds the play thread has played in conjunction with the DDS
+volatile unsigned char playback_flag = 1; //Flag indicating that the device is in playback mode
+volatile unsigned char sound_flag = 1; //Flag indicating that a sound is being played. 
 
 
 
@@ -77,7 +77,7 @@ volatile int sin_table[sine_table_size] ;
 // the dds state controlled by python interface
 volatile int dds_state = 0;
 
-volatile int isr_counter = 5720;
+volatile int isr_counter = 5720; //Counter that indicates how much of a sound has been played
 
 volatile _Accum curr_amplitude = 0;
 
@@ -89,6 +89,9 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
 {
     // you MUST clear the ISR flag
     mT2ClearIntFlag();
+    //Sound selector
+    //Changes the frequency function based on which sound is requested with flag dds_state
+    //dds_state = 0 is swoop, dds_state = 1 is chirp, dds_state = 2 is silence.
     if (dds_state == 0 && isr_counter < 5720){ 
         phase_accum_main += (int)(phase_incr_mult * swoop(isr_counter));
     }
@@ -110,6 +113,7 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
      mPORTBClearBits(BIT_4); // start transaction
      
      //Envelope
+     //changes amplitude as a piecewise function of isr_counter.
      if (isr_counter< 1000) {
          curr_amplitude = (float) isr_counter * 0.001;
      }
@@ -125,6 +129,8 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
      
      DAC_data = (int) (DAC_data * curr_amplitude);
     
+    //ADC Sends. Iterates the isrcounter and sends numerical data to the DAC according to dds state. 
+    //Also changes the sound flag back to 1 to allow for playback threads to iterate and play the next sound.
     if (isr_counter < 5720) { //Increment ISR
         isr_counter++;
         if (dds_state < 2){
@@ -308,15 +314,20 @@ static PT_THREAD (protothread_playback(struct pt *pt))
 {
     PT_BEGIN(pt);
     while(1){
+
+        //Yields until the device is in playback mode and the playback index is != the record index.
+        //This implies that the playback index is less than the record index and allows the thread to 
+        //Iterate through the list and playback the respective sounds corresponding to the integer stored
+        //in the list of chars.
+        PT_YIELD_UNTIL(pt, playback_flag == 1 && playback_index != record_index);
         
-        //Playback flag is set when toggle_value = 0, i.e toggle is checked off, to play recorded noises
-        PT_YIELD_UNTIL(pt, playback_flag == 1 && playback_index != record_index); 
-        
-        if (sound_flag == 1){
-            dds_state = record_array[playback_index];
-            isr_counter = 0; //So that every time we wanna play a sound, the ISR can measure the 130ms 
-            playback_index++; 
-            sound_flag = 0; // A flag to make sure that we enter this thread only once a recorded sound is completed        
+        if (sound_flag == 1){//Statement verifies no sound is being played
+            dds_state = record_array[playback_index]; //Change played sound
+            isr_counter = 0; //Start sound
+            playback_index++; //iterate playback_index
+            sound_flag = 0; //signal sound is being played
+            printf("%d\n", dds_state ); //Print dds_state to serial terminal
+       
         }     
     }    
     PT_END(pt);  
