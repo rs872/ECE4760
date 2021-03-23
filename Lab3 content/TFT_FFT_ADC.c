@@ -245,6 +245,9 @@ static PT_THREAD (protothread_fft(struct pt *pt))
             fr[sample_number] = max(fr[sample_number], fi[sample_number]) + 
                     multfix14(min(fr[sample_number], fi[sample_number]), zero_point_4); 
             
+		
+	    //What's happening here? -RK
+		
             // reuse fr to hold log magnitude
             // shifting finds most significant bit
             // then make approxlog  = ly + (fr-y)./(y) + 0.043;
@@ -273,6 +276,7 @@ static PT_THREAD (protothread_fft(struct pt *pt))
         // erase, then draw
         for (sample_number = 0; sample_number < nPixels; sample_number++) {
             tft_drawPixel(sample_number, pixels[sample_number], ILI9340_BLACK); //clear screen
+	    //What is pixels array storing? What is happening in 281? -RK
             pixels[sample_number] = -fr[sample_number] + 200 ;
             tft_drawPixel(sample_number, pixels[sample_number], getColor(fr[sample_number]));
             // reuse fr to hold magnitude 
