@@ -266,7 +266,9 @@ static PT_THREAD (protothread_fft(struct pt *pt))
             // bound the noise at low amp
             if(fr[sample_number]<log_min) fr[sample_number] = log_min;
         }
-        
+	    
+	
+        //Understand - RK
         // timer 4 set up with prescalar=8, 
         // hence mult reading by 8 to get machine cycles
         sprintf(buffer, "FFT cycles %d", (ReadTimer4())*8);
