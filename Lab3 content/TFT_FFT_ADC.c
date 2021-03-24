@@ -1,3 +1,5 @@
+//Notes -- ADC buffer is 2 bytes long
+
 /*
  * File:        ADC > FFT > TFT
  * Author:      Bruce Land
