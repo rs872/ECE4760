@@ -1,3 +1,7 @@
+//We've gotta add the timer interrupt line. We're missing that currently.
+//OpenOC3/4 should have 0, 40000
+//How is a single, chained timer going to control the PWm signal of both the motors? Ah so the two OC registers are different but comparing vaue to same timer. 
+//gotcha.
 
 /*
  * File:        Bird Chirp Synthesizer
