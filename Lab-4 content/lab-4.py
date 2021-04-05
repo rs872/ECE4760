@@ -64,8 +64,8 @@ heading_color = '#2FB8AD'
 layout = [  [sg.Text('Motor Control',  background_color=heading_color)],
 
 			#
-			[sg.Button('Return to Position', font='Helvetica 12'), 
-			sg.Checkbox('Program Position', key='r_en', 
+			[sg.RealtimeButton('Return to Position', font='Helvetica 12',key='pushbut01'), 
+			sg.Checkbox('Program Position', key='toggle01', 
                         font='Helvetica 8', enable_events=True)],
 						
 			#
@@ -114,12 +114,12 @@ sg.SetOptions(background_color='#9FB8AD',
 window = sg.Window('ECE4760 Interface', layout, location=(0,0), 
                     return_keyboard_events=True, use_default_focus=True,
                     element_justification='c', finalize=True)
+					
+					
 
 # Bind the realtime button release events <ButtonRelease-1>
 # https://github.com/PySimpleGUI/PySimpleGUI/issues/2020
-#window['pushbut01'].bind('<ButtonRelease-1>', 'r')
-#window['pushbut02'].bind('<ButtonRelease-1>', 'r')
-#window['pushbut03'].bind('<ButtonRelease-1>', 'r')
+window['pushbut01'].bind('<ButtonRelease-1>', 'r')
 # Event Loop to process "events" 
 # event is set by window.read
 event = 0
