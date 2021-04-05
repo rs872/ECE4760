@@ -1,7 +1,3 @@
-//We've gotta add the timer interrupt line. We're missing that currently.
-//OpenOC3/4 should have 0, 40000
-//How is a single, chained timer going to control the PWm signal of both the motors? Ah so the two OC registers are different but comparing vaue to same timer. 
-//gotcha.
 
 /*
  * File:        Bird Chirp Synthesizer
@@ -60,25 +56,138 @@ char new_slider = 0;
 int slider_id;
 float slider_value ; // value could be large
 
+int return_pos_pan = 60000;
+int return_pos_tilt = 60000;
+
+char new_button = 0;
+char new_toggle = 0;
+
+char record_pos = 1;
+
+// curent button
+char button_id, button_value ;
+// current toggle switch/ check box
+char toggle_id, toggle_value ;
+
+#define SERVO_MIN_CYCLES 60000
 // === Slider Thread =============================================
 // 
 static PT_THREAD (protothread_sliders(struct pt *pt))
 {
     PT_BEGIN(pt);
     while(1){
-        PT_YIELD_UNTIL(pt, new_slider==1);
+        PT_YIELD_UNTIL(pt, new_slider==1 && record_pos ==1);
         // clear flag
         new_slider = 0; 
         if (slider_id == 1){ // turn factor slider
-            printf("hello Yo");
-            OC1RS = slider_value;
+            
+            OC3RS = slider_value;
+            return_pos_pan = slider_value;
+
         }
         else if (slider_id == 2){
-            OC2RS = slider_value;
+            OC4RS = slider_value;
+            return_pos_tilt = slider_value;
+            
         }
     }
     PT_END(pt);
 }
+
+// === Buttons thread ==========================================================
+// process buttons from Python for clear LCD and blink the on-board LED
+static PT_THREAD (protothread_buttons(struct pt *pt))
+{
+    PT_BEGIN(pt);
+    while(1){
+        PT_YIELD_UNTIL(pt, new_button==1);
+        // clear flag
+        new_button = 0;   
+        // Button one -- control the LED on the big board
+        if (button_id==1 && button_value==0){
+            OC3RS = return_pos_pan;
+            OC4RS = return_pos_tilt; 
+        }
+
+         
+    } // END WHILE(1)   
+    PT_END(pt);  
+} // thread blink
+
+// === Toggle thread ==========================================================
+// process toggle from Python to change a dot color on the LCD
+static PT_THREAD (protothread_toggles(struct pt *pt))
+{
+    PT_BEGIN(pt);
+    //
+    while(1){
+        // this threaqd does a periodic redraw in case the dot is erased
+        PT_YIELD_UNTIL(pt, new_toggle==1);
+        //update dot color if toggle changed
+        printf("hello Yo");
+        if (new_toggle == 1){
+            // clear toggle flag
+            new_toggle = 0;   
+            // Toggle one -- put a  green makrer on screen
+            if (toggle_id==1 && toggle_value==1){
+                record_pos = 1;
+                
+            }
+            // toggle 0 -- put a red dot on the screen
+            else if (toggle_id==1 && toggle_value==0){
+                record_pos = 0;
+            }
+           
+        } // end new toggle
+    } // END WHILE(1)   
+    PT_END(pt);  
+} // thread toggles
+
+//======================RANDOM WALKING THREAD=======================
+static PT_THREAD (protothread_randomwalk(struct pt *pt))
+{
+    PT_BEGIN(pt);
+    //
+    while(1){
+        // this threaqd does a periodic redraw in case the dot is erased
+        PT_YIELD_TIME_msec(1000);
+        //update dot color if toggle changed
+        if (record_pos == 0){
+            int tempReg = OC3RS + rand();
+            printf("tempReg: %d",tempReg);
+            if(tempReg < 60000) 
+            {
+                OC3RS = 60000;
+            }
+            else if(tempReg > 80000) 
+            {
+                OC3RS = 800000;
+            }
+            else 
+            {
+                OC3RS = tempReg;
+            }
+            tempReg = OC4RS + rand();
+            printf("tempReg: %d",tempReg);
+            if(tempReg < 60000) 
+            {
+                OC4RS = 60000;
+            }
+            else if(tempReg > 80000) 
+            {
+                OC4RS = 800000;
+            }
+            else 
+            {
+                OC4RS = tempReg;
+            }
+            
+        } // end new toggle
+    } // END WHILE(1)   
+    PT_END(pt);  
+} // thread random walk
+
+
 // === Python serial thread ====================================================
 // you should not need to change this thread UNLESS you add new control types
 static PT_THREAD (protothread_serial(struct pt *pt))
@@ -113,6 +222,23 @@ static PT_THREAD (protothread_serial(struct pt *pt))
             sscanf(PT_term_buffer, "%c %d %f", &junk, &slider_id, &slider_value);
             new_slider = 1;
         }
+        if (PT_term_buffer[0]=='t'){
+            // signal the button thread
+            new_toggle = 1;
+
+            // subtracting '0' converts ascii to binary for 1 character
+            toggle_id = (PT_term_buffer[1] - '0')*10 + (PT_term_buffer[2] - '0');
+            toggle_value = PT_term_buffer[3] - '0';
+        }
+        
+        // pushbutton
+        if (PT_term_buffer[0]=='b'){
+            // signal the button thread
+            new_button = 1;
+            // subtracting '0' converts ascii to binary for 1 character
+            button_id = (PT_term_buffer[1] - '0')*10 + (PT_term_buffer[2] - '0');
+            button_value = PT_term_buffer[3] - '0';
+        }
 
         
         // string from python input line
@@ -131,10 +257,10 @@ static PT_THREAD (protothread_serial(struct pt *pt))
 
 void main(void) {
     
-    OpenTimer23(T2_ON | T2_PS_1_1 | T2_32BIT_MODE_ON, 800000); //800K (cycles) in hex
+    OpenTimer23(T2_ON | T2_PS_1_1 | T2_32BIT_MODE_ON, 800000); //800K (cycles)
     
-    OpenOC3(OC_ON | OC_TIMER_MODE32 | OC_TIMER2_SRC | OC_PWM_FAULT_PIN_DISABLE , 40000, 40000) ;
-    OpenOC4(OC_ON | OC_TIMER_MODE32 | OC_TIMER2_SRC | OC_PWM_FAULT_PIN_DISABLE , 40000, 40000) ;
+    OpenOC3(OC_ON | OC_TIMER_MODE32 | OC_TIMER2_SRC | OC_PWM_FAULT_PIN_DISABLE , SERVO_MIN_CYCLES, SERVO_MIN_CYCLES) ;
+    OpenOC4(OC_ON | OC_TIMER_MODE32 | OC_TIMER2_SRC | OC_PWM_FAULT_PIN_DISABLE , SERVO_MIN_CYCLES, SERVO_MIN_CYCLES) ;
     
     PPSOutput(4, RPA3, OC3) ;  // configure OC3 to RPA3
     PPSOutput(3, RPA2, OC4) ;  // configure OC4 to RPA2
@@ -186,6 +312,10 @@ void main(void) {
 //  pt_add(protothread_buttons, 0);
   pt_add(protothread_serial, 0);
   pt_add(protothread_sliders, 0);
+  pt_add(protothread_buttons, 0);
+  pt_add(protothread_toggles, 0);
+  pt_add(protothread_randomwalk, 0);
+  
 //  pt_add(protothread_python_string, 0);
 
 //  
