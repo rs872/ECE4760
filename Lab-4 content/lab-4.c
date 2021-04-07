@@ -153,7 +153,7 @@ static PT_THREAD (protothread_randomwalk(struct pt *pt))
         PT_YIELD_TIME_msec(1000);
         //update dot color if toggle changed
         if (record_pos == 0){
-            int tempReg = OC3RS + rand();
+            int tempReg = OC3RS + 100;
             printf("tempReg: %d",tempReg);
             if(tempReg < 60000) 
             {
@@ -167,7 +167,7 @@ static PT_THREAD (protothread_randomwalk(struct pt *pt))
             {
                 OC3RS = tempReg;
             }
-            tempReg = OC4RS + rand();
+            tempReg = OC4RS + 100;
             printf("tempReg: %d",tempReg);
             if(tempReg < 60000) 
             {
