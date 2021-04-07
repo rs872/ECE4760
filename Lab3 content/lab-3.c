@@ -1,6 +1,6 @@
 /*
- * File:        ADC > FFT > TFT
- * Author:      Bruce Land
+ * File:        lab-3
+ * Author:      Rishi Singhal, William Salcedo, Raghav Kumar with code adapted from Bruce Land
  * 
  * Target PIC:  PIC32MX250F128B
  */
@@ -30,14 +30,12 @@
   This is an example sketch for the Adafruit 2.2" SPI display.
   This library works with the Adafruit 2.2" TFT Breakout w/SD card
   ----> http://www.adafruit.com/products/1480
-
   Check out the links above for our tutorials and wiring diagrams
   These displays use SPI to communicate, 4 or 5 pins are required to
   interface (RST is optional)
   Adafruit invests time and resources providing this open source code,
   please support Adafruit and open-source hardware by purchasing
   products from Adafruit!
-
   Written by Limor Fried/Ladyada for Adafruit Industries.
   MIT license, all text above must be included in any redistribution
  ****************************************************/
@@ -104,10 +102,12 @@ void printLine(int line_number, char* print_buffer, short text_color, short back
     tft_writeString(print_buffer);
 }
 
+// === print line for TFT, larger font ============================================
 void printLine2(float line_number, char* print_buffer, short text_color, short back_color){
     // line number 0 to 31 
     /// !!! assumes tft_setRotation(0);
     // print_buffer is the string to print
+    //modified to accept floats to allow for line numbers in 0.5 increments
     int v_pos;
     v_pos = line_number * 20 ;
     // erase the pixels
@@ -167,7 +167,7 @@ inline unsigned short getColor(_Accum magnitude) { //convert to colors
         return 0xc638;
     }
     else {
-        return 0xFFFF;
+        return 0xFFFF; //if magnitude is greater than or equal to 64
     }
     
    
@@ -197,9 +197,7 @@ begin
         tr = fr[m];
         fr[m] = fr[mr];
         fr[mr] = tr;
-        //ti = fi[m];   //for real inputs, don't need this
-        //fi[m] = fi[mr];
-        //fi[mr] = ti;
+
     end
 
     L = 1;
@@ -212,8 +210,6 @@ begin
             j = m << k;
             wr =  Sinewave[j+N_WAVE/4];
             wi = -Sinewave[j];
-            //wr >>= 1; do need if scale table
-            //wi >>= 1;
 
             for(i=m; i<n; i+=istep)
             begin
@@ -246,7 +242,6 @@ static PT_THREAD (protothread_fft(struct pt *pt))
     static _Accum zero_point_4 = float2Accum(0.4) ;
     // approx log calc ;
     static int sx, y, ly, temp ;
-    
     while(1) {
         // yield time 1 second
         PT_YIELD_TIME_msec(30);
@@ -256,9 +251,6 @@ static PT_THREAD (protothread_fft(struct pt *pt))
         DmaChnEnable(1); //enable channel 1
         // yield until DMA done: while((DCH0CON & Chn_busy) ){};
         PT_WAIT_WHILE(pt, DCH1CON & CHN_BUSY);
-        mPORTASetBits(BIT_0 );	//set bits to turn light on.
-        // profile fft time
-        WriteTimer4(0);
         
         // compute and display fft
         // load input array
@@ -284,8 +276,9 @@ static PT_THREAD (protothread_fft(struct pt *pt))
                     (min(fr[sample_number], fi[sample_number]) * zero_point_4); 
         }
             
-        int sample_incr = sample_rate / 8; //amount for each tick for frequency (sample_rate/2)/4
+        int sample_incr = sample_rate / 8; //amount for each tick on the axis for frequency (sample_rate/2)/4
         
+        // display scale for the frequency axis
         sprintf(buffer, "%d", sample_incr * 4 );
         printLine2(0.5, buffer, ILI9340_WHITE, ILI9340_BLACK);
         
@@ -297,31 +290,25 @@ static PT_THREAD (protothread_fft(struct pt *pt))
         
         sprintf(buffer, "%d", sample_incr);
         printLine2(9.5, buffer, ILI9340_WHITE, ILI9340_BLACK);
-        
-
-        
 
         // Display on TFT
         // erase, then draw
-        tft_fillRect(current_x,0,10,240,ILI9340_BLACK);
-        int largest_bin = 6;
-        for (sample_number = 1; sample_number < 240; sample_number++) {
-            //tft_drawPixel(current_x, 240 - sample_number, ILI9340_BLACK); //clear screen
-            
-            tft_drawPixel(current_x, 240 - sample_number, getColor(fr[sample_number]) );
-            if(fr[sample_number] > fr[largest_bin] && sample_number > 5){
+        tft_fillRect(current_x,0,10,240,ILI9340_BLACK); //fill first 10 pixels ahead of the pointer with black (mimic the scrolling of an oscilloscope)
+        int largest_bin = 6; //define largest magnitude bin (random value, actual value to be calculated later)
+        for (sample_number = 1; sample_number < 240; sample_number++) { //start at bin 1 to skip the DC noise bin
+            tft_drawPixel(current_x, 240 - sample_number, getColor(fr[sample_number]) ); //plot each frequency bin at a different color based on its magnitude
+            if(fr[sample_number] > fr[largest_bin] && sample_number > 5){ //find the bin with the largest magnitude (skip the low frequency bins due to dc noise)
                 largest_bin = sample_number;
             }
             // reuse fr to hold magnitude 
-
         }  
-        sprintf(buffer, "Max Freq: %d", sample_rate * largest_bin / 512);
+
+        //frequency range is divided among 512 bins, use ratio multiplied by the sample rate to get max frequency
+        sprintf(buffer, "Max Freq: %d", sample_rate * largest_bin / 512); 
         printLineXY(50, 0, buffer, ILI9340_WHITE, ILI9340_BLACK);
 
-        
-        current_x++;
-        
-        if(current_x == 320){
+        current_x++;        
+        if(current_x == 320){ // keep plotting within the margins, refresh if at the end of the screen
             current_x = 50;
         }
         // NEVER exit while
@@ -329,8 +316,6 @@ static PT_THREAD (protothread_fft(struct pt *pt))
       } // END WHILE(1)
   PT_END(pt);
 } // FFT thread
-
-
 
 // === Slider Thread =============================================
 // 
@@ -342,11 +327,10 @@ static PT_THREAD (protothread_sliders(struct pt *pt))
         // clear flag
         new_slider = 0; 
         if (slider_id == 1){ // turn factor slider
-            sample_rate = slider_value * 2;
-            timer_match = 40000000/sample_rate;
+            sample_rate = slider_value * 2; //sample rate is 2 times the frequency based on nyquist criteria
+            timer_match = 40000000/sample_rate; // set timer to 40MHz divided by sample rate
             CloseTimer3();
-            OpenTimer3(T3_ON | T3_SOURCE_INT | T3_PS_1_1, timer_match); 
-            printf("Hello There");
+            OpenTimer3(T3_ON | T3_SOURCE_INT | T3_PS_1_1, timer_match); //initialize timer3 set to the desired frequency we want
         }
     }
     PT_END(pt);
@@ -404,7 +388,7 @@ static PT_THREAD (protothread_serial(struct pt *pt))
 
 void main(void) {
 
-    ANSELA = 0; 
+    ANSELA = 0; //analaog select A and B
     ANSELB = 0;
     // === config threads ========================
     // turns OFF UART support and debugger pin, unless defines are set
@@ -416,13 +400,10 @@ void main(void) {
     
     // timer 3 setup for adc trigger  ==============================================
     // Set up timer3 on,  no interrupts, internal clock, prescalar 1, compare-value
-    // This timer generates the time base for each ADC sample. 
-    // works at ??? Hz
-    // 40 MHz PB clock rate
     timer_match = 40000000/sample_rate;
     OpenTimer3(T3_ON | T3_SOURCE_INT | T3_PS_1_1, timer_match); 
     
-    //=== DMA Channel 0 transfer ADC data to array v_in ================================
+    //=== DMA Channel 1 transfer ADC data to array v_in ================================
     // Open DMA Chan1 for later use sending video to TV
     #define DMAchan1 1
 	DmaChnOpen(DMAchan1, 0, DMA_OPEN_DEFAULT);
@@ -435,9 +416,7 @@ void main(void) {
 
     // define setup parameters for OpenADC10
     // Turn module on | ouput in integer | trigger mode auto | enable autosample
-    // ADC_CLK_AUTO -- Internal counter ends sampling and starts conversion (Auto convert)
     // ADC_AUTO_SAMPLING_ON -- Sampling begins immediately after last conversion completes; SAMP bit is automatically set
-    // ADC_AUTO_SAMPLING_OFF -- Sampling begins with AcquireADC10();
     #define PARAM1  ADC_FORMAT_INTG16 | ADC_CLK_TMR | ADC_AUTO_SAMPLING_ON //
 
     // define setup parameters for OpenADC10
@@ -445,9 +424,7 @@ void main(void) {
     #define PARAM2  ADC_VREF_AVDD_AVSS | ADC_OFFSET_CAL_DISABLE | ADC_SCAN_OFF | ADC_SAMPLES_PER_INT_1 | ADC_ALT_BUF_OFF | ADC_ALT_INPUT_OFF
     //
     // Define setup parameters for OpenADC10
-    // for a 40 MHz PB clock rate
     // use peripherial bus clock | set sample time | set ADC clock divider
-    // ADC_CONV_CLK_Tcy should work at 40 MHz.
     // ADC_SAMPLE_TIME_6 seems to work with a source resistance < 1kohm
     #define PARAM3 ADC_CONV_CLK_PB | ADC_SAMPLE_TIME_6 | ADC_CONV_CLK_Tcy //ADC_SAMPLE_TIME_5| ADC_CONV_CLK_Tcy2
 
@@ -467,11 +444,6 @@ void main(void) {
     EnableADC10(); // Enable the ADC
     ///////////////////////////////////////////////////////
 
-    // timer 4 setup for profiling code ===========================================
-    // Set up timer2 on,  interrupts, internal clock, prescalar 1, compare-value
-    // This timer generates the time base for each horizontal video line
-    OpenTimer4(T4_ON | T4_SOURCE_INT | T4_PS_1_8, 0xffff);
-        
     // === init FFT data =====================================
     // one cycle sine table
     //  required for FFT
@@ -479,7 +451,6 @@ void main(void) {
     for (ii = 0; ii < N_WAVE; ii++) {
         Sinewave[ii] = float2Accum(sin(6.283 * ((float) ii) / N_WAVE)*0.5);
         window[ii] = float2Accum(1.0 * (1.0 - cos(6.283 * ((float) ii) / (N_WAVE - 1))));
-        //window[ii] = float2fix(1.0) ;
     }
 
     // === TFT setup ============================
@@ -491,9 +462,6 @@ void main(void) {
     //240x320 vertical display
     tft_setRotation(1); // Use tft_setRotation(1) for 320x240
 
-    mPORTAClearBits(BIT_0 );	//Clear bits to ensure light is off.
-    mPORTASetPinsDigitalOut(BIT_0);    //Set port as output
-
     // Add in ticks and axis for the spectrogram, permanently drawn
     tft_fillRect(48,0,1,240,ILI9340_RED); //vertical line
     tft_fillRect(30,240-2,18,2,ILI9340_RED); //bottom tick
@@ -502,8 +470,6 @@ void main(void) {
     tft_fillRect(30,240-182,18,2,ILI9340_RED); //4th tick
     tft_fillRect(30,0,18,2,ILI9340_RED); //top tick
 
-    
-    
     
     // === identify the threads to the scheduler =====
     // add the thread function pointers to be scheduled
@@ -526,8 +492,6 @@ void main(void) {
     // from uart1 to uart2 for the controller
 
     pt_sched_method = SCHED_ROUND_ROBIN ;
-
-    
     
     // === scheduler thread =======================
     // scheduler never exits
