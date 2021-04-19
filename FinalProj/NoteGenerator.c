@@ -151,8 +151,8 @@ int next_note_duration = 0;
 
 //MARKOV CHAIN - DURATION
 //matrix of probabilities, each row needs to sum up to 1
-char markov_duration[8][8];
-
+unsigned char markov_duration[8][8];
+char markov_trigger = 1;
 //nc - Understand how the beats work?
 // beat/rest patterns
 #define n_beats 11
@@ -341,17 +341,11 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
                          tempo_v1_flag = 0;
                          for (i=0; i<56; i++){
                             PT_YIELD_UNTIL(pt,tempo_v1_flag==1);
-                            curr_note_duration = i % 2;
-                            if(curr_note_duration == 0){
-                                //dotted quarter
-                                curr_note_duration = 4;
-                            }
-                            else{
-                                //8th
-                                curr_note_duration = 1;
-                            }
+                            printf("Cmd thread. Next Note Duration is %d\n", next_note_duration);
+                            curr_note_duration = next_note_duration;
                             phase_incr_fm = freq_fm[current_v1_synth]*notesDEF[i]*(float)two32/Fs; 
                             phase_incr_main = freq_main[current_v1_synth]*notesDEF[i]*(float)two32/Fs; 
+                            markov_trigger = 1;
                             play_trigger = 1;
                             tempo_v1_flag = 0;
                          }
@@ -376,7 +370,35 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
   PT_END(pt);
 } // thread 3
 
+
 // === Thread 5 ======================================================
+//Markov thread
+static PT_THREAD (protothread_markov(struct pt *pt))
+{
+    PT_BEGIN(pt);
+
+      while(1) {
+            // yield time 1 second
+            PT_YIELD_UNTIL(pt, markov_trigger == 1) ;
+            markov_trigger = 0;
+            unsigned char random_num = rand() % 255;
+            printf("Markov Thread. Random Value = %d\n", random_num);
+            int i;
+            for (i=0; i<8; i++){
+                if (markov_duration[curr_note_duration][i] >= random_num){
+                    printf("Markov Thread. Next Note Duration %d\n", next_note_duration);
+                    next_note_duration = i;
+                    break;
+                }
+            }
+            
+            // NEVER exit while
+      } // END WHILE(1)
+  PT_END(pt);
+} // thread 4
+
+
+// === Thread 6 ======================================================
 // update a 1 second tick counter
 static PT_THREAD (protothread_tick(struct pt *pt))
 {
@@ -516,7 +538,19 @@ int main(void)
   // === now the threads ====================
     
     //Populate Markov Chains
-    
+    int i;
+    for (i = 0; i < 8; i++){
+        markov_duration[i][0] = (unsigned char)rand() % 32;
+        printf("ROW # %d: [%d, ", i, markov_duration[i][0]);
+        int j;
+        for (j = 1; j < 7; j++){
+            markov_duration[i][j] = markov_duration[i][j-1] + (unsigned char)rand() % 32;
+            printf("%d, ", markov_duration[i][j]);
+        }
+        markov_duration[i][7] = 255;
+        printf("%d ", markov_duration[i][7]);
+        printf("]\n");
+    }
 
     // init the display
   tft_init_hw();
@@ -535,6 +569,7 @@ int main(void)
   pt_add(protothread_serial, 0);
 //   pt_add(protothread_python_string, 0);
   pt_add(protothread_tick, 0);
+  pt_add(protothread_markov, 0);
   
   // === initalize the scheduler ====================
   PT_INIT(&pt_sched) ;
@@ -559,9 +594,9 @@ int main(void)
   
   // build the sine lookup table
    // scaled to produce values between 0 and 4095
-   int i;
-   for (i = 0; i < sine_table_size; i++){
-         sine_table[i] =  float2Accum(2047.0*sin((float)i*6.283/(float)sine_table_size));
+   int k;
+   for (k = 0; k < sine_table_size; k++){
+         sine_table[k] =  float2Accum(2047.0*sin((float)k*6.283/(float)sine_table_size));
     }
 
       // === scheduler thread =======================
