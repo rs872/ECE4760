@@ -105,45 +105,55 @@ volatile fixAccum env_main, wave_main,  dk_state_main, attack_state_main;
 // 5 snare
 // 6 chime - MAYBET HIS
 // 7 low, harsh string-like MAYBE THIS
-//                                          0     1      2      3      4      5      6
+//nc - below are various parameters that are used to generate instrument like sounds. They are used in
+//in the ISR where sound is produced via the ADC. 
+//                                          0     1      2      3      4      5      6      7
 volatile fixAccum  attack_main[n_synth] = {0.001, 0.9,  0.001, 0.001, 0.001, 0.001, 0.001, .005};
 volatile fixAccum   decay_main[n_synth] = {0.98,  0.97, 0.98,  0.98,  0.98,  0.80,  0.98, 0.98};
 //
 volatile fixAccum     depth_fm[n_synth] = {2.00,  2.5,  2.0,   3.0,   1.5,   10.0,  1.0,  2.0};
 volatile fixAccum    attack_fm[n_synth] = {0.001, 0.9,  0.001, 0.001, 0.001, 0.001, 0.001, 0.005};
 volatile fixAccum     decay_fm[n_synth] = {0.80,  0.8,  0.80,  0.90,  0.90,  0.80,  0.98,  0.98};
+//nc - Generating sound is same as in lab 1, however this time we modulate the main frequency (freq_main)
+//with another frequency (freq_fm). This is known as frequency modulation.
 //                          0    1    2    3     4    5     6     7
 float freq_main[n_synth] = {1.0, 1.0, 0.5, 0.25, 0.5, 1.00, 1.0,  0.25};
 float   freq_fm[n_synth] = {3.0, 1.1, 1.5, 0.4,  0.8, 1.00, 1.34, 0.37};
 // the current setting for instrument (index into above arrays)
+//nc - The current instrument is set to a plucked string.
 int current_v1_synth=0, current_v2_synth=0 ;
 
-// pentatonic scale
-// Transposing the pitches to fit into one octave rearranges 
-// the pitches into the major pentatonic scale: C, D, E, G, A, C.
-//   C2   65.4
-//   C3   130.8
-//   C4   262 Hz (middle C)   
-//   D4   294
-//	E4   330
-//	F4   349
-//	G4   392
-//	A4   440  
-//	B4   494
-//	C5   523  
-// see: http://www.phy.mtu.edu/~suits/notefreqs.html
+//20 counts / 1 ms * 1000 msec / 1sec * 60 sec /1 min * min/beats= ( 1.2*10^6)/bpm
+#define BPM_SCALER 1200000
+#define BPM 120
 
-//When indexing note array- subtract from MIDI number of the first note of the array! For ex if C4 is first then subtract by 60.
-//float notes[8] = { 262, 294, 330, 392, 440, 523, 587, 659 } ; should take notes from our header file
+//nc - When indexing note array - subtract from MIDI number of the first note of the array! 
+//For ex if C4 is first then subtract by 60. This is done, so that the code can index into the note
+//array just on the basis of a midi number.
 
+//nc - tempo is how long the note lasts. The ADC fires at the same rate always, but temp decides how many 
+//times the ADC produces sounds.(250ms is 5000 ISR fires. Everytime the iSR fires, it produces sound.)
 // note transition rate in ticks of the ISR
-// rate is 20/mSec. So 250 mS is 5000 counts
-// 8/sec, 4/sec, 2/sec, 1/sec
-int tempo[4] = {2500, 5000, 10000, 20000};
-int tempo_v1_flag, tempo_v2_flag ;
-int current_v1_tempo=1, current_v2_tempo=2;
-int tempo_v1_count, tempo_v2_count ;
+// rate is 20/mSec (timer overflow rate for the ISR). So 250 mS is 5000 counts
+//20 counts (ISR fires) per ms
+// 8/sec, 4/sec, 2/sec, 1/sec (4th of sec = 250ms = 5000 counts)
 
+//1 in the sub_divs is a quarter-note
+//This array is analagous to note duration
+//16th, 8th, dotted_8th, quarter, dotted_quarter, half, dotted half, whole
+_Accum sub_divs[8] = {0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4};
+int tempo_v1_flag, tempo_v2_flag;
+int current_v1_tempo=1, current_v2_tempo=2;
+int tempo_v1_count, tempo_v2_count;
+unsigned int cycles_per_beat = BPM_SCALER/BPM;
+int curr_note_duration = 0;
+int next_note_duration = 0;
+
+//MARKOV CHAIN - DURATION
+//matrix of probabilities, each row needs to sum up to 1
+char markov_duration[8][8];
+
+//nc - Understand how the beats work?
 // beat/rest patterns
 #define n_beats 11
 int beat[n_beats] = {
@@ -170,6 +180,8 @@ int rand_raw ;
 // time scaling for decay calculation
 volatile int dk_interval; // wait some samples between decay calcs
 // play flag
+//nc - When this flag is a 1, the ADC plays the note. If the user inputs ps or pn, then the cmd thread
+//will flip this flag to a 1
 volatile int play_trigger;
 volatile fixAccum sustain_state, sustain_interval=0;
 // profiling of ISR
@@ -205,13 +217,15 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
     // time to get into ISR
     isr_start_time = ReadTimer2(); 
     tempo_v1_count++ ;
-    if (tempo_v1_count>=tempo[current_v1_tempo]) {
+    if (tempo_v1_count>=cycles_per_beat*sub_divs[curr_note_duration]) {
         tempo_v1_flag = 1;
         tempo_v1_count = 0;
     }
     
     mT2ClearIntFlag();
     
+    //nc - Everytime the timer interrupts, the phase_accum variable for both the main_freq and freq_mod
+    //vector increments. This is irrespective of sound being played or not.
     // FM phase
     phase_accum_fm += phase_incr_fm ; 
     // main phase
@@ -220,6 +234,9 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
      // init the exponential decays
      // by adding energy to the exponential filters 
     if (play_trigger) {
+        //nc - current_v1_synth contains the index of the instrument to be played.
+        //hence all appropriate variables required to produce that instrument's sound are
+        //extracted below. 
         dk_state_fm = depth_fm[current_v1_synth]; 
         dk_state_main = onefixAccum; 
         attack_state_fm = depth_fm[current_v1_synth]; 
@@ -231,7 +248,8 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
         sustain_state = 0;
     }
     
-    //Bread and butter of the algorithm!!**
+    //nc - Bread and butter of the algorithm!! Bruce does some cool math here that I don't understand.
+    //nc - To note, the following code block runs, even if play_trigger is not set.
     //TODO: whats the diff between FM and Main
     //Main frequency and modulating frequency are BOTH present
     //pure tone with the modulator decaying
@@ -254,6 +272,7 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
      
     }
 
+    //nc - send a value to the DAC irrespective of play trigger being set or not.
     // === Channel A =============
     // CS low to start transaction
      mPORTBClearBits(BIT_4); // start transaction
@@ -281,6 +300,8 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
 // ps -- play scale
 // t -- print current instrument parameters
 // 
+
+//nc - This is the main control thread of the program
 static PT_THREAD (protothread_cmd(struct pt *pt))
 {
     // The serial interface
@@ -297,12 +318,13 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
       while(1) {
             rand_raw = rand();
             
-            // by spawning a print thread
+            //nc - Yield until a new string is received. 
             PT_YIELD_UNTIL(pt, new_string==1);
             new_string = 0;
+            //nc - value is note index in our own note array in the header
             value = (int) (receive_string[2] - '0') * 10 + (receive_string[3] - '0');
             switch(receive_string[0]){
-                 case 'p': // value is note index
+                 case 'p': 
                      if(receive_string[1]=='n') {
                          printf("Value %d\n", value);
                          printf("we're receiving it\n");
@@ -319,6 +341,15 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
                          tempo_v1_flag = 0;
                          for (i=0; i<56; i++){
                             PT_YIELD_UNTIL(pt,tempo_v1_flag==1);
+                            curr_note_duration = i % 2;
+                            if(curr_note_duration == 0){
+                                //dotted quarter
+                                curr_note_duration = 4;
+                            }
+                            else{
+                                //8th
+                                curr_note_duration = 1;
+                            }
                             phase_incr_fm = freq_fm[current_v1_synth]*notesDEF[i]*(float)two32/Fs; 
                             phase_incr_main = freq_main[current_v1_synth]*notesDEF[i]*(float)two32/Fs; 
                             play_trigger = 1;
@@ -334,6 +365,7 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
                      }
                      if (receive_string[1]=='t') {
                      // value is tempo index 0-3
+                         printf("Tempo Changed\n");
                         current_v1_tempo = (int)(value);
                      }
                      break;
@@ -482,6 +514,9 @@ int main(void)
     // For any given peripherial, you will need to match these
     SpiChnOpen(spiChn, SPI_OPEN_ON | SPI_OPEN_MODE16 | SPI_OPEN_MSTEN | SPI_OPEN_CKE_REV , spiClkDiv);
   // === now the threads ====================
+    
+    //Populate Markov Chains
+    
 
     // init the display
   tft_init_hw();

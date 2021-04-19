@@ -64,10 +64,16 @@ char new_toggle = 0;
 
 char record_pos = 1;
 
+float pan_incr = 100*M_PI;
+float tilt_incr = 0;
+
+
 // curent button
 char button_id, button_value ;
 // current toggle switch/ check box
 char toggle_id, toggle_value ;
+
+
 
 #define SERVO_MIN_CYCLES 60000
 // === Slider Thread =============================================
@@ -124,7 +130,6 @@ static PT_THREAD (protothread_toggles(struct pt *pt))
         // this threaqd does a periodic redraw in case the dot is erased
         PT_YIELD_UNTIL(pt, new_toggle==1);
         //update dot color if toggle changed
-        printf("hello Yo");
         if (new_toggle == 1){
             // clear toggle flag
             new_toggle = 0;   
@@ -150,38 +155,47 @@ static PT_THREAD (protothread_randomwalk(struct pt *pt))
     //
     while(1){
         // this threaqd does a periodic redraw in case the dot is erased
-        PT_YIELD_TIME_msec(1000);
-        //update dot color if toggle changed
-        if (record_pos == 0){
-            int tempReg = OC3RS + 100;
-            printf("tempReg: %d",tempReg);
-            if(tempReg < 60000) 
-            {
-                OC3RS = 60000;
+        PT_YIELD_TIME_msec(30);
+        if (ADC1BUF0 > 550){
+            OC3RS = return_pos_pan;
+            OC4RS = return_pos_tilt;
+            PT_YIELD_TIME_msec(2000);
+        }
+        else{
+            if (record_pos == 0){
+                int tempReg = OC3RS + pan_incr;
+
+                if(tempReg < 60000)  //lowest boundary condition, want pan_incr to increase pan
+                {
+                    pan_incr = -pan_incr;
+                    OC3RS = 60000;
+                }
+                else if(tempReg > 80000) //upper boundary condition, want pan_incr to decrease pan
+                {   
+                    tilt_incr = 200;
+                    pan_incr = -pan_incr;
+                    OC3RS = 80000;
+                }
+                else  //everything in between the pan limits
+                {
+                    OC3RS = tempReg;
+                }
+                tempReg = OC4RS + tilt_incr;
+                if(tempReg < 60000)   //lowest boundary condition, want tilt_incr to increase pan
+                {
+                    tilt_incr = -tilt_incr;
+                    OC4RS = 60000;
+                }
+                else if(tempReg > 80000) //upper boundary condition, want tilt_incr to decrease pan
+                {
+                    tilt_incr = -tilt_incr;
+                    OC4RS = 80000;
+                }
+                else 
+                {
+                    OC4RS = tempReg; //everything in between the tilt limits
+                }
             }
-            else if(tempReg > 80000) 
-            {
-                OC3RS = 800000;
-            }
-            else 
-            {
-                OC3RS = tempReg;
-            }
-            tempReg = OC4RS + 100;
-            printf("tempReg: %d",tempReg);
-            if(tempReg < 60000) 
-            {
-                OC4RS = 60000;
-            }
-            else if(tempReg > 80000) 
-            {
-                OC4RS = 800000;
-            }
-            else 
-            {
-                OC4RS = tempReg;
-            }
-            
         } // end new toggle
     } // END WHILE(1)   
     PT_END(pt);  
@@ -265,35 +279,56 @@ void main(void) {
     PPSOutput(4, RPA3, OC3) ;  // configure OC3 to RPA3
     PPSOutput(3, RPA2, OC4) ;  // configure OC4 to RPA2
     
-    SetChanADC10( ADC_CH0_NEG_SAMPLEA_NVREF | ADC_CH0_POS_SAMPLEA_AN11 ); // configure to sample AN11
+    // the ADC ///////////////////////////////////////
     
+    // timer 3 setup for adc trigger  ==============================================
+    // Set up timer3 on,  no interrupts, internal clock, prescalar 1, compare-value
+    // This timer generates the time base for each ADC sample. 
+    // works at ??? Hz
+    // 40 MHz PB clock rate
     
+//    OpenTimer3(T3_ON | T3_SOURCE_INT | T3_PS_1_1, 40000000/1000); // 4MHz/sample_rate (overflow)
     
-    
-    
-//  // === set up DAC on big board ========
-//  // timer interrupt //////////////////////////
-//    // Set up timer2 on,  interrupts, internal clock, prescalar 1, toggle rate
-//    #define TIMEOUT (40000000/Fs) // clock rate / sample rate
-//    // 2000 is 20 ksamp/sec
-//    printf("in main");
-//    OpenTimer2(T2_ON | T2_SOURCE_INT | T2_PS_1_1, TIMEOUT);
-//
-//    // set up the timer interrupt with a priority of 2
-//    ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_2);
+        
+    // configure and enable the ADC
+    CloseADC10(); // ensure the ADC is off before setting the configuration
+
+    // define setup parameters for OpenADC10
+    // Turn module on | ouput in integer | trigger mode auto | enable autosample
+    // ADC_CLK_AUTO -- Internal counter ends sampling and starts conversion (Auto convert)
+    // ADC_AUTO_SAMPLING_ON -- Sampling begins immediately after last conversion completes; SAMP bit is automatically set
+    // ADC_AUTO_SAMPLING_OFF -- Sampling begins with AcquireADC10();
+    #define PARAM1  ADC_FORMAT_INTG16 | ADC_CLK_AUTO | ADC_AUTO_SAMPLING_ON // //
+
+    // define setup parameters for OpenADC10
+    // ADC ref external  | disable offset test | disable scan mode | do 1 sample | use single buf | alternate mode off
+    #define PARAM2  ADC_VREF_AVDD_AVSS | ADC_OFFSET_CAL_DISABLE | ADC_SCAN_OFF | ADC_SAMPLES_PER_INT_1 | ADC_ALT_BUF_OFF | ADC_ALT_INPUT_OFF
+    //
+    // Define setup parameters for OpenADC10
+    // for a 40 MHz PB clock rate
+    // use peripherial bus clock | set sample time | set ADC clock divider
+    // ADC_CONV_CLK_Tcy should work at 40 MHz.
+    // ADC_SAMPLE_TIME_6 seems to work with a source resistance < 1kohm
+    #define PARAM3 ADC_CONV_CLK_PB | ADC_SAMPLE_TIME_6 | ADC_CONV_CLK_Tcy //ADC_SAMPLE_TIME_5| ADC_CONV_CLK_Tcy2
+
+    // define setup parameters for OpenADC10
+    // set AN11 and  as analog inputs
+    #define PARAM4	ENABLE_AN11_ANA // pin 24
+
+    // define setup parameters for OpenADC10
+    // do not assign channels to scan
+    #define PARAM5	SKIP_SCAN_ALL
+
+    // use ground as neg ref for A | use AN11 for input A     
+    // configure to sample AN11 
+    SetChanADC10(ADC_CH0_NEG_SAMPLEA_NVREF | ADC_CH0_POS_SAMPLEA_AN11); // configure to sample AN4 
+    OpenADC10(PARAM1, PARAM2, PARAM3, PARAM4, PARAM5); // configure ADC using the parameters defined above
+
+    EnableADC10(); // Enable the ADC
+    ///////////////////////////////////////////////////////
+   
     mT3ClearIntFlag(); // and clear the interrupt flag
-//
-//    // control CS for DAC
-//    mPORTBSetPinsDigitalOut(BIT_4);
-//    mPORTBSetBits(BIT_4);
-//    // SCK2 is pin 26 
-//    // SDO2 (MOSI) is in PPS output group 2, could be connected to RB5 which is pin 14
-//    PPSOutput(2, RPB5, SDO2);
-//    // 16 bit transfer CKP=1 CKE=1
-//    // possibles SPI_OPEN_CKP_HIGH;   SPI_OPEN_SMP_END;  SPI_OPEN_CKE_REV
-//    // For any given peripherial, you will need to match these
-//    SpiChnOpen(SPI_CHANNEL2, SPI_OPEN_ON | SPI_OPEN_MODE16 | SPI_OPEN_MSTEN | SPI_OPEN_CKE_REV , 2);
-//  // === end DAC setup =========
+
 //    
 
 // 
@@ -315,6 +350,7 @@ void main(void) {
   pt_add(protothread_buttons, 0);
   pt_add(protothread_toggles, 0);
   pt_add(protothread_randomwalk, 0);
+  
   
 //  pt_add(protothread_python_string, 0);
 
