@@ -1,4 +1,3 @@
-
 /*
  * File:        Bird Chirp Synthesizer
  *             
@@ -64,7 +63,7 @@ char new_toggle = 0;
 
 char record_pos = 1;
 
-float pan_incr = 100*M_PI;
+float pan_incr = 100*M_PI; //increment for active robot movement to give personality
 float tilt_incr = 0;
 
 
@@ -73,9 +72,9 @@ char button_id, button_value ;
 // current toggle switch/ check box
 char toggle_id, toggle_value ;
 
+#define SERVO_MIN_CYCLES 60000 //minimum cycle value for lowest position
 
 
-#define SERVO_MIN_CYCLES 60000
 // === Slider Thread =============================================
 // 
 static PT_THREAD (protothread_sliders(struct pt *pt))
@@ -85,16 +84,13 @@ static PT_THREAD (protothread_sliders(struct pt *pt))
         PT_YIELD_UNTIL(pt, new_slider==1 && record_pos ==1);
         // clear flag
         new_slider = 0; 
-        if (slider_id == 1){ // turn factor slider
-            
+        if (slider_id == 1){ // slider to pan the robot
             OC3RS = slider_value;
             return_pos_pan = slider_value;
-
         }
-        else if (slider_id == 2){
+        else if (slider_id == 2){ //slider to tile the robot to a certain value
             OC4RS = slider_value;
             return_pos_tilt = slider_value;
-            
         }
     }
     PT_END(pt);
@@ -106,43 +102,33 @@ static PT_THREAD (protothread_buttons(struct pt *pt))
 {
     PT_BEGIN(pt);
     while(1){
-        PT_YIELD_UNTIL(pt, new_button==1);
+        PT_YIELD_UNTIL(pt, new_button==1); 
         // clear flag
         new_button = 0;   
-        // Button one -- control the LED on the big board
-        if (button_id==1 && button_value==0){
+        if (button_id==1 && button_value==0){ //return to position button pressed
             OC3RS = return_pos_pan;
             OC4RS = return_pos_tilt; 
         }
-
-         
     } // END WHILE(1)   
     PT_END(pt);  
 } // thread blink
 
 // === Toggle thread ==========================================================
-// process toggle from Python to change a dot color on the LCD
+// process toggle from Python to change from programming to active mode
 static PT_THREAD (protothread_toggles(struct pt *pt))
 {
     PT_BEGIN(pt);
-    //
     while(1){
-        // this threaqd does a periodic redraw in case the dot is erased
         PT_YIELD_UNTIL(pt, new_toggle==1);
-        //update dot color if toggle changed
         if (new_toggle == 1){
             // clear toggle flag
             new_toggle = 0;   
-            // Toggle one -- put a  green makrer on screen
-            if (toggle_id==1 && toggle_value==1){
+            if (toggle_id==1 && toggle_value==1){ //programming mode, record position set by slider 
                 record_pos = 1;
-                
             }
-            // toggle 0 -- put a red dot on the screen
-            else if (toggle_id==1 && toggle_value==0){
+            else if (toggle_id==1 && toggle_value==0){//active mode, do not change servos based on slider value
                 record_pos = 0;
             }
-           
         } // end new toggle
     } // END WHILE(1)   
     PT_END(pt);  
@@ -152,28 +138,26 @@ static PT_THREAD (protothread_toggles(struct pt *pt))
 static PT_THREAD (protothread_randomwalk(struct pt *pt))
 {
     PT_BEGIN(pt);
-    //
     while(1){
-        // this threaqd does a periodic redraw in case the dot is erased
         PT_YIELD_TIME_msec(30);
-        if (ADC1BUF0 > 550){
-            OC3RS = return_pos_pan;
+        if (ADC1BUF0 > 550){  // poll ADC to see if the value is above threshold(when someone speaks)
+            OC3RS = return_pos_pan; //return to position if someone speaks
             OC4RS = return_pos_tilt;
             PT_YIELD_TIME_msec(2000);
         }
         else{
-            if (record_pos == 0){
-                int tempReg = OC3RS + pan_incr;
+            if (record_pos == 0){  //active mode
+                int tempReg = OC3RS + pan_incr; //continuously move robot in active mode
 
                 if(tempReg < 60000)  //lowest boundary condition, want pan_incr to increase pan
                 {
-                    pan_incr = -pan_incr;
+                    pan_incr = -pan_incr; //switch direction at boundary condition
                     OC3RS = 60000;
                 }
                 else if(tempReg > 80000) //upper boundary condition, want pan_incr to decrease pan
                 {   
-                    tilt_incr = 200;
-                    pan_incr = -pan_incr;
+                    tilt_incr = 200; 
+                    pan_incr = -pan_incr; //switch direction at boundary condition
                     OC3RS = 80000;
                 }
                 else  //everything in between the pan limits
@@ -183,12 +167,12 @@ static PT_THREAD (protothread_randomwalk(struct pt *pt))
                 tempReg = OC4RS + tilt_incr;
                 if(tempReg < 60000)   //lowest boundary condition, want tilt_incr to increase pan
                 {
-                    tilt_incr = -tilt_incr;
+                    tilt_incr = -tilt_incr; //switch direction at boundary condition
                     OC4RS = 60000;
                 }
                 else if(tempReg > 80000) //upper boundary condition, want tilt_incr to decrease pan
                 {
-                    tilt_incr = -tilt_incr;
+                    tilt_incr = -tilt_incr; //switch direction at boundary condition
                     OC4RS = 80000;
                 }
                 else 
@@ -270,12 +254,14 @@ static PT_THREAD (protothread_serial(struct pt *pt))
 // === Main  ======================================================
 
 void main(void) {
-    
+    //timer for servo motors, chained timer 2 and 3 for 32 bits
     OpenTimer23(T2_ON | T2_PS_1_1 | T2_32BIT_MODE_ON, 800000); //800K (cycles)
     
+    //output compare module initialized for servos, using OCM 3 and 4 in PWM mode
     OpenOC3(OC_ON | OC_TIMER_MODE32 | OC_TIMER2_SRC | OC_PWM_FAULT_PIN_DISABLE , SERVO_MIN_CYCLES, SERVO_MIN_CYCLES) ;
     OpenOC4(OC_ON | OC_TIMER_MODE32 | OC_TIMER2_SRC | OC_PWM_FAULT_PIN_DISABLE , SERVO_MIN_CYCLES, SERVO_MIN_CYCLES) ;
     
+    //configure the OCM to set the pin voltages
     PPSOutput(4, RPA3, OC3) ;  // configure OC3 to RPA3
     PPSOutput(3, RPA2, OC4) ;  // configure OC4 to RPA2
     
@@ -372,5 +358,3 @@ void main(void) {
   // ============================================
   
 } // main
-
-
