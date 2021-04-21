@@ -152,6 +152,13 @@ int next_note_duration = 0;
 //MARKOV CHAIN - DURATION
 //matrix of probabilities, each row needs to sum up to 1
 unsigned char markov_duration[8][8];
+
+#define MARKOVHEIGHT 56 //56^2
+#define MARKOVDEPTH 56
+unsigned char markov_notes[MARKOVHEIGHT][MARKOVDEPTH][MARKOVHEIGHT];
+volatile int next_note = 0;
+volatile int curr_note = 0;
+volatile int prev_note = 0;
 char markov_trigger = 1;
 //nc - Understand how the beats work?
 // beat/rest patterns
@@ -183,9 +190,12 @@ volatile int dk_interval; // wait some samples between decay calcs
 //nc - When this flag is a 1, the ADC plays the note. If the user inputs ps or pn, then the cmd thread
 //will flip this flag to a 1
 volatile int play_trigger;
+
 volatile fixAccum sustain_state, sustain_interval=0;
 // profiling of ISR
 volatile int isr_time, isr_start_time, isr_count=0;
+volatile int flag_attack_done = 0;
+volatile int cycles_attack = 0;
 
 // === outputs from python handler =============================================
 // signals from the python handler thread to other threads
@@ -246,6 +256,7 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
         phase_accum_main = 0;
         dk_interval = 0;
         sustain_state = 0;
+        flag_attack_done = 0;
     }
     
     //nc - Bread and butter of the algorithm!! Bruce does some cool math here that I don't understand.
@@ -256,11 +267,17 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
     //in guitar string the second harmonic decays faster than the fundamental, and third even faster
     // envelope calculations are 256 times slower than sample rate
     // computes 4 exponential decays and builds the product envelopes
+    /*if(attack_state_fm > 0.01 && flag_attack_done == 0){
+        cycles_attack = tempo_v1_count;
+        flag_attack_done = 1;
+    }*/
     if ((dk_interval++ & 0xff) == 0){
-        // approximate the first order FM decay  ODE
-        dk_state_fm = dk_state_fm * decay_fm[current_v1_synth] ;
-        //  approximate the first order main waveform decay  ODE
-        dk_state_main = dk_state_main * decay_main[current_v1_synth] ;
+        //if( (attack_state_fm > 0.01) || (tempo_v1_count > cycles_per_beat*sub_divs[curr_note_duration]- 1000*sub_divs[curr_note_duration] - cycles_attack)){
+            // approximate the first order FM decay  ODE
+            dk_state_fm = dk_state_fm * decay_fm[current_v1_synth] ;
+            //  approximate the first order main waveform decay  ODE
+            dk_state_main = dk_state_main * decay_main[current_v1_synth] ;
+        //}
         // approximate the ODE for the exponential rise FM/main waveform
         attack_state_fm = attack_state_fm * attack_fm[current_v1_synth];
         attack_state_main = attack_state_main * attack_main[current_v1_synth];
@@ -343,8 +360,10 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
                             PT_YIELD_UNTIL(pt,tempo_v1_flag==1);
                             printf("Cmd thread. Next Note Duration is %d\n", next_note_duration);
                             curr_note_duration = next_note_duration;
-                            phase_incr_fm = freq_fm[current_v1_synth]*notesDEF[i]*(float)two32/Fs; 
-                            phase_incr_main = freq_main[current_v1_synth]*notesDEF[i]*(float)two32/Fs; 
+                            prev_note = curr_note;
+                            curr_note = next_note;                            
+                            phase_incr_fm = freq_fm[current_v1_synth]*notesDEF[curr_note]*(float)two32/Fs; 
+                            phase_incr_main = freq_main[current_v1_synth]*notesDEF[curr_note]*(float)two32/Fs; 
                             markov_trigger = 1;
                             play_trigger = 1;
                             tempo_v1_flag = 0;
@@ -381,13 +400,25 @@ static PT_THREAD (protothread_markov(struct pt *pt))
             // yield time 1 second
             PT_YIELD_UNTIL(pt, markov_trigger == 1) ;
             markov_trigger = 0;
-            unsigned char random_num = rand() % 255;
+            unsigned long int random_num = rand() % 110;
             printf("Markov Thread. Random Value = %d\n", random_num);
             int i;
             for (i=0; i<8; i++){
                 if (markov_duration[curr_note_duration][i] >= random_num){
-                    printf("Markov Thread. Next Note Duration %d\n", next_note_duration);
+                    
                     next_note_duration = i;
+                    break;
+                }
+                printf("Markov Thread. Next Note Duration %d\n", i);
+            }
+            
+            random_num = rand() % 12000;
+            unsigned long int cumulative_probability= 0; 
+            for (i=0; i<56; i++){
+            cumulative_probability += markov_notes[curr_note][prev_note][i];
+                if(cumulative_probability >= random_num){
+                    printf("Markov Thread. Next Note Pitch %d\n", next_note);
+                    next_note = i;
                     break;
                 }
             }
@@ -546,9 +577,24 @@ int main(void)
         for (j = 1; j < 7; j++){
             markov_duration[i][j] = markov_duration[i][j-1] + (unsigned char)rand() % 32;
             printf("%d, ", markov_duration[i][j]);
+
         }
         markov_duration[i][7] = 255;
         printf("%d ", markov_duration[i][7]);
+        printf("]\n");
+    }
+    
+    
+    for (i = 0; i < 56; i++){
+        int j;
+        for (j = 0; j < 56; j++){
+            int k;
+            for(k=0;k < 56; k++){
+                markov_notes[i][j][k] = (unsigned char)(rand() % 255);
+                printf("%d, ", markov_notes[i][j][k]);
+            }
+
+        }
         printf("]\n");
     }
 
