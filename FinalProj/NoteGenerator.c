@@ -27,6 +27,8 @@
 // need for sin function
 #include <math.h>
 #include "Notes.h"
+#include "note_markov.h"
+#include "duration_markov.h"
 ////////////////////////////////////
 
 // === thread structures ============================================
@@ -146,22 +148,24 @@ int tempo_v1_flag, tempo_v2_flag;
 int current_v1_tempo=1, current_v2_tempo=2;
 int tempo_v1_count, tempo_v2_count;
 unsigned int cycles_per_beat = BPM_SCALER/BPM;
+int prev_prev_note_duration = 0;
+int prev_note_duration = 0;
 int curr_note_duration = 0;
 int next_note_duration = 0;
 
 //MARKOV CHAIN - DURATION
 //matrix of probabilities, each row needs to sum up to 1
 //can store markov_duration in RAM since (8^4 = 4096 bytes) and RAM is 32K bytes
-unsigned char markov_duration[8][8];
 
 //Flash memory is 128K bytes but approximating ~28K bytes for the code, we have ~100K bytes for the 
 //note markov chain. Hence, we could have 17^4 = 83.5K bytes
-#define MARKOVHEIGHT 56 //56^2
-#define MARKOVDEPTH 56
-unsigned char markov_notes[MARKOVHEIGHT][MARKOVDEPTH];
-volatile int next_note = 0;
-volatile int curr_note = 0;
+#define MARKOVDIM 17 
+
+volatile int prev_prev_note = 0;
 volatile int prev_note = 0;
+volatile int curr_note = 0;
+volatile int next_note = 0;
+
 char markov_trigger = 1;
 //nc - Understand how the beats work?
 // beat/rest patterns
@@ -362,7 +366,10 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
                          for (i=0; i<56; i++){
                             PT_YIELD_UNTIL(pt,tempo_v1_flag==1);
                             printf("Cmd thread. Next Note Duration is %d\n", next_note_duration);
+                            prev_prev_note_duration = prev_note_duration;
+                            prev_note_duration = curr_note_duration;
                             curr_note_duration = next_note_duration;
+                            prev_prev_note =  prev_note;
                             prev_note = curr_note;
                             curr_note = next_note;                            
                             phase_incr_fm = freq_fm[current_v1_synth]*notesDEF[curr_note]*(float)two32/Fs; 
@@ -403,23 +410,29 @@ static PT_THREAD (protothread_markov(struct pt *pt))
             // yield time 1 second
             PT_YIELD_UNTIL(pt, markov_trigger == 1) ;
             markov_trigger = 0;
-            unsigned long int random_num = rand() % 110;
-            printf("Markov Thread. Random Value = %d\n", random_num);
+            unsigned long int random_num = rand() % 2040; //255*8 (8 buckets with each max of 255))
+            unsigned long int cum_prob = 0;
+
+            //printf("Markov Thread. Random Value = %d\n", random_num);
             int i;
             for (i=0; i<8; i++){
-                if (markov_duration[curr_note_duration][i] >= random_num){
-                    
+                cum_prob += (unsigned long int)
+                            markov_duration[curr_note_duration][prev_note_duration][prev_prev_note_duration][i];
+                if (cum_prob >= random_num){
                     next_note_duration = i;
                     break;
                 }
                 printf("Markov Thread. Next Note Duration %d\n", i);
             }
+            //reset cumulative probability
+            cum_prob = 0;
             
-            random_num = rand() % 12000;
-            unsigned long int cumulative_probability= 0; 
-            for (i=0; i<17; i++){
-            cumulative_probability += markov_notes[curr_note][prev_note][i];
-                if(cumulative_probability >= random_num){
+            random_num = rand() % 4335; //255*17
+            for (i=0; i<13; i++){
+                cum_prob += (unsigned long int)
+                            markov_notes[curr_note][prev_note][prev_prev_note][i];
+                printf("Markov Value is is %d\n", markov_notes[curr_note][prev_note][prev_prev_note][i]);
+                if(cum_prob >= random_num){
                     printf("Markov Thread. Next Note Pitch %d\n", next_note);
                     next_note = i;
                     break;
