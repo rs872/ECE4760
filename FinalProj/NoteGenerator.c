@@ -151,11 +151,14 @@ int next_note_duration = 0;
 
 //MARKOV CHAIN - DURATION
 //matrix of probabilities, each row needs to sum up to 1
+//can store markov_duration in RAM since (8^4 = 4096 bytes) and RAM is 32K bytes
 unsigned char markov_duration[8][8];
 
+//Flash memory is 128K bytes but approximating ~28K bytes for the code, we have ~100K bytes for the 
+//note markov chain. Hence, we could have 17^4 = 83.5K bytes
 #define MARKOVHEIGHT 56 //56^2
 #define MARKOVDEPTH 56
-unsigned char markov_notes[MARKOVHEIGHT][MARKOVDEPTH][MARKOVHEIGHT];
+unsigned char markov_notes[MARKOVHEIGHT][MARKOVDEPTH];
 volatile int next_note = 0;
 volatile int curr_note = 0;
 volatile int prev_note = 0;
@@ -414,7 +417,7 @@ static PT_THREAD (protothread_markov(struct pt *pt))
             
             random_num = rand() % 12000;
             unsigned long int cumulative_probability= 0; 
-            for (i=0; i<56; i++){
+            for (i=0; i<17; i++){
             cumulative_probability += markov_notes[curr_note][prev_note][i];
                 if(cumulative_probability >= random_num){
                     printf("Markov Thread. Next Note Pitch %d\n", next_note);
@@ -568,35 +571,6 @@ int main(void)
     SpiChnOpen(spiChn, SPI_OPEN_ON | SPI_OPEN_MODE16 | SPI_OPEN_MSTEN | SPI_OPEN_CKE_REV , spiClkDiv);
   // === now the threads ====================
     
-    //Populate Markov Chains
-    int i;
-    for (i = 0; i < 8; i++){
-        markov_duration[i][0] = (unsigned char)rand() % 32;
-        printf("ROW # %d: [%d, ", i, markov_duration[i][0]);
-        int j;
-        for (j = 1; j < 7; j++){
-            markov_duration[i][j] = markov_duration[i][j-1] + (unsigned char)rand() % 32;
-            printf("%d, ", markov_duration[i][j]);
-
-        }
-        markov_duration[i][7] = 255;
-        printf("%d ", markov_duration[i][7]);
-        printf("]\n");
-    }
-    
-    
-    for (i = 0; i < 56; i++){
-        int j;
-        for (j = 0; j < 56; j++){
-            int k;
-            for(k=0;k < 56; k++){
-                markov_notes[i][j][k] = (unsigned char)(rand() % 255);
-                printf("%d, ", markov_notes[i][j][k]);
-            }
-
-        }
-        printf("]\n");
-    }
 
     // init the display
   tft_init_hw();
