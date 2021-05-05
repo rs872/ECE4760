@@ -12,6 +12,7 @@ outFile = os.path.join(curr_path, "output.csv")
 csv_string = pm.midi_to_csv(midiFile)
 
 with open(outFile, "w") as f:
+    f.write("a, b, c, d, e, f\n")
     f.writelines(csv_string)
     f.close()
 
@@ -19,9 +20,12 @@ with open(outFile, "w") as f:
 
 endMidi = pd.read_csv(outFile,error_bad_lines=False)
 
-beatspertick = endMidi.iloc[1,5]
-print(beatspertick)
+temp = endMidi.loc[[0]].to_numpy()
+print(temp)
+beats_per_tick = temp[0,5]
+print(beats_per_tick)
 
-#endMidi.drop(endMidi.columns[[0,3,5]], axis=1,inplace = True)
+endMidi.drop(endMidi.columns[[0,3,5]], axis=1,inplace = True)
+endMidi = endMidi.iloc[7:]
 
-#endMidi.to_csv(outFile,index = False)
+endMidi.to_csv(outFile,index = False)
