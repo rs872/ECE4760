@@ -105,7 +105,7 @@ prev_x3_duration = None
 
 for note_array in processed_data:
     curr_note = int(note_array[0])
-    curr_duration = int(note_array[3])
+    curr_duration = float(note_array[3])
 
     if (prev_x3_note != None):
         curr_markov_index_n = int(curr_note - 48)
