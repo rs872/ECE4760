@@ -12,124 +12,134 @@ processed_data_csv = os.path.join(curr_path, "processed_data.csv")
 markov_note_file = os.path.join(curr_path, "MarkovNote.txt")
 markov_duration_file = os.path.join(curr_path, "MarkovDuration.txt")
 
-
-
-# Load the MIDI file and parse it into CSV format
-csv_string = pm.midi_to_csv(midiFile)
-
-with open(outFile, "w") as f:
-    f.write("a, b, c, d, e, f\n")
-    f.writelines(csv_string)
-    f.close()
-
-
-
-endMidi = pd.read_csv(outFile,error_bad_lines=False)
-
-temp = endMidi.loc[[0]].to_numpy()
-print(temp)
-#(Note_off - Note_on)/ ticks_per_beat = note type (1/8th etc)
-ticks_per_beat = temp[0,5]
-if (type(ticks_per_beat) == str):
-    ticks_per_beat.strip()
-ticks_per_beat = float(ticks_per_beat)
-print(ticks_per_beat)
-print(type(ticks_per_beat))
-
-endMidi.drop(endMidi.columns[[0,3]], axis=1,inplace = True)
-for row_index in range(endMidi.shape[0]):
-    print(endMidi.iloc[row_index,1])
-    if (endMidi.iloc[row_index, 1]).strip() == 'Note_on_c':
-        endMidi = endMidi.iloc[row_index:]
-        break
-
-for row_index in range(endMidi.shape[0] - 1, -1, -1):
-    if ((endMidi.iloc[row_index, 1].strip() == 'Note_on_c') or (endMidi.iloc[row_index, 1].strip() == 'Note_off_c')):
-        endMidi = endMidi.iloc[:row_index]
-        break
-    
-
-endMidi.to_csv(pre_processed, index = False)
-
-
-endMidi = endMidi.to_numpy()
-print(endMidi.shape)
-
 markov_note = np.full((13,13,13,13),0)
 markov_duration = np.full((8,8,8,8),0)
-processed_data = []
 
-#1 loop through frequencies in csv (column 3)
-#2 identify unique frequencies, insert them in 2D array and note start time (assuming first hit of unique freq is always turn on)
-#3 as soon as we identify a repeated frequency, we note end time, subtract to get duration (assuming second hit of freq is always turn off)
+directory = os.path.join(curr_path, 'training-data')
+for filename in os.listdir(directory):
+    if filename.endswith(".mid") or filename.endswith(".midi"):
+        midiFile = os.path.join(directory, filename)
+        # Load the MIDI file and parse it into CSV format
+        csv_string = pm.midi_to_csv(midiFile)
 
-for index in range(endMidi.shape[0]):
-    if (int(endMidi[index][2]) < 48 or int(endMidi[index][2]) > 60):
-        continue
-    on_or_off = endMidi[index, 1] #on_or_off is a string
-    velocity = endMidi[index, 3].strip()
-    on_or_off = on_or_off.strip()
-    # print(on_or_off)
-    # print(velocity )
-    # print((velocity == 0) and (on_or_off == 'Note_on_c'))
-    if (on_or_off ==  'Note_on_c') and (velocity != '0'):
-        processed_data.append([endMidi[index, 2], endMidi[index, 0], None, None])
-    elif ((velocity == '0') and (on_or_off == 'Note_on_c')) or (on_or_off ==  'Note_off_c'):
-        for index2 in range(len(processed_data) - 1, -1, -1): #ind_array = individual array in processed data
-            if (endMidi[index, 2] == processed_data[index2][0]):
-                processed_data[index2][2] = endMidi[index, 0]
-                processed_data[index2][3] = (processed_data[index2][2] - processed_data[index2][1]) / ticks_per_beat #note type (quarter note, half note, full note etc )
-                processed_data[index2][3] *= 8
-                processed_data[index2][3] = round(processed_data[index2][3])
-                if (processed_data[index2][3] == 0):
-                    processed_data[index2][3] = 1
-                if (processed_data[index2][3] > 8):
-                    processed_data[index2][3] = 8
-                processed_data[index2][3] /= 8
+        with open(outFile, "w") as f:
+            f.write("a, b, c, d, e, f\n")
+            f.writelines(csv_string)
+            f.close()
+
+
+
+        endMidi = pd.read_csv(outFile,error_bad_lines=False)
+
+        temp = endMidi.loc[[0]].to_numpy()
+        print(temp)
+        #(Note_off - Note_on)/ ticks_per_beat = note type (1/8th etc)
+        ticks_per_beat = temp[0,5]
+        if (type(ticks_per_beat) == str):
+            ticks_per_beat.strip()
+        ticks_per_beat = float(ticks_per_beat)
+        print(ticks_per_beat)
+        print(type(ticks_per_beat))
+
+        endMidi.drop(endMidi.columns[[0,3]], axis=1,inplace = True)
+        for row_index in range(endMidi.shape[0]):
+            print(endMidi.iloc[row_index,1])
+            if (endMidi.iloc[row_index, 1]).strip() == 'Note_on_c':
+                endMidi = endMidi.iloc[row_index:]
                 break
 
-processed_data_df = pd.DataFrame(processed_data)
-processed_data_df.to_csv(processed_data_csv, index = False)
-# savetxt(processed_data_csv, processed_data, delimiter=',')
+        for row_index in range(endMidi.shape[0] - 1, -1, -1):
+            if ((endMidi.iloc[row_index, 1].strip() == 'Note_on_c') or (endMidi.iloc[row_index, 1].strip() == 'Note_off_c')):
+                endMidi = endMidi.iloc[:row_index]
+                break
+            
+
+        endMidi.to_csv(pre_processed, index = False)
 
 
-curr_note = None
-prev_note = None
-prev_x2_note = None
-prev_x3_note = None
+        endMidi = endMidi.to_numpy()
+        print(endMidi.shape)
 
-curr_duration = None
-prev_duration = None
-prev_x2_duration = None
-prev_x3_duration = None
+        processed_data = []
 
-for note_array in processed_data:
-    curr_note = int(note_array[0])
-    curr_duration = float(note_array[3])
+        #1 loop through frequencies in csv (column 3)
+        #2 identify unique frequencies, insert them in 2D array and note start time (assuming first hit of unique freq is always turn on)
+        #3 as soon as we identify a repeated frequency, we note end time, subtract to get duration (assuming second hit of freq is always turn off)
 
-    if (prev_x3_note != None):
-        curr_markov_index_n = int(curr_note - 48)
-        prev_markov_index_n = int(prev_note - 48)
-        prev_x2_markov_index_n = int(prev_x2_note - 48)
-        prev_x3_markov_index_n = int(prev_x3_note - 48)
-        markov_note[prev_markov_index_n, prev_x2_markov_index_n, prev_x3_markov_index_n, curr_markov_index_n] += 1
+        for index in range(endMidi.shape[0]):
+            if (int(endMidi[index][2]) < 48 or int(endMidi[index][2]) > 60):
+                continue
+            on_or_off = endMidi[index, 1] #on_or_off is a string
+            velocity = endMidi[index, 3]
+            if (type(velocity) == str):
+                velocity = velocity.strip()
+                velocity = int(velocity)
+            if (type(on_or_off) == str):
+                on_or_off = on_or_off.strip()
+            # print(on_or_off)
+            # print(velocity )
+            # print((velocity == 0) and (on_or_off == 'Note_on_c'))
+            if (on_or_off ==  'Note_on_c') and (velocity != 0):
+                processed_data.append([endMidi[index, 2], endMidi[index, 0], None, None])
+            elif ((velocity == 0) and (on_or_off == 'Note_on_c')) or (on_or_off ==  'Note_off_c'):
+                for index2 in range(len(processed_data) - 1, -1, -1): #ind_array = individual array in processed data
+                    if (endMidi[index, 2] == processed_data[index2][0]):
+                        processed_data[index2][2] = endMidi[index, 0]
+                        processed_data[index2][3] = (processed_data[index2][2] - processed_data[index2][1]) / ticks_per_beat #note type (quarter note, half note, full note etc )
+                        processed_data[index2][3] *= 8
+                        processed_data[index2][3] = round(processed_data[index2][3])
+                        if (processed_data[index2][3] == 0):
+                            processed_data[index2][3] = 1
+                        if (processed_data[index2][3] > 8):
+                            processed_data[index2][3] = 8
+                        processed_data[index2][3] /= 8
+                        break
 
-        curr_markov_index_d = int(curr_duration / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
-        prev_markov_index_d = int(prev_duration / 0.125) - 1
-        prev_x2_markov_index_d = int(prev_x2_duration / 0.125) - 1
-        prev_x3_markov_index_d = int(prev_x3_duration / 0.125) - 1
-        markov_duration[prev_markov_index_d][prev_x2_markov_index_d][prev_x3_markov_index_d][curr_markov_index_d] += 1
+        processed_data_df = pd.DataFrame(processed_data)
+        processed_data_df.to_csv(processed_data_csv, index = False)
+        # savetxt(processed_data_csv, processed_data, delimiter=',')
 
-    
-    #notes
-    prev_x3_note = prev_x2_note
-    prev_x2_note = prev_note
-    prev_note = curr_note
 
-    #duration
-    prev_x3_duration = prev_x2_duration
-    prev_x2_duration = prev_duration
-    prev_duration = curr_duration
+        curr_note = None
+        prev_note = None
+        prev_x2_note = None
+        prev_x3_note = None
+
+        curr_duration = None
+        prev_duration = None
+        prev_x2_duration = None
+        prev_x3_duration = None
+
+        for note_array in processed_data:
+            curr_note = int(note_array[0])
+            curr_duration = float(note_array[3])
+
+            if (prev_x3_note != None):
+                curr_markov_index_n = int(curr_note - 48)
+                prev_markov_index_n = int(prev_note - 48)
+                prev_x2_markov_index_n = int(prev_x2_note - 48)
+                prev_x3_markov_index_n = int(prev_x3_note - 48)
+                markov_note[prev_markov_index_n, prev_x2_markov_index_n, prev_x3_markov_index_n, curr_markov_index_n] += 1
+
+                curr_markov_index_d = int(curr_duration / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
+                prev_markov_index_d = int(prev_duration / 0.125) - 1
+                prev_x2_markov_index_d = int(prev_x2_duration / 0.125) - 1
+                prev_x3_markov_index_d = int(prev_x3_duration / 0.125) - 1
+                markov_duration[prev_markov_index_d][prev_x2_markov_index_d][prev_x3_markov_index_d][curr_markov_index_d] += 1
+
+            
+            #notes
+            prev_x3_note = prev_x2_note
+            prev_x2_note = prev_note
+            prev_note = curr_note
+
+            #duration
+            prev_x3_duration = prev_x2_duration
+            prev_x2_duration = prev_duration
+            prev_duration = curr_duration
+
+    else:
+        continue
 
 markov_note_dim = 13
 for i in range(markov_note_dim):
