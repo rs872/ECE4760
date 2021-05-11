@@ -67,15 +67,17 @@ for filename in os.listdir(directory):
         #3 as soon as we identify a repeated frequency, we note end time, subtract to get duration (assuming second hit of freq is always turn off)
 
         for index in range(endMidi.shape[0]):
-            if (int(endMidi[index][2]) < 48 or int(endMidi[index][2]) > 60):
-                continue
             on_or_off = endMidi[index, 1] #on_or_off is a string
+            if (type(on_or_off) == str):
+                on_or_off = on_or_off.strip()
+
+            if ((on_or_off != 'Note_on_c' and on_or_off != 'Note_off_c') or int(endMidi[index][2]) < 48 or int(endMidi[index][2]) > 60):
+                continue
+            
             velocity = endMidi[index, 3]
             if (type(velocity) == str):
                 velocity = velocity.strip()
                 velocity = int(velocity)
-            if (type(on_or_off) == str):
-                on_or_off = on_or_off.strip()
             # print(on_or_off)
             # print(velocity )
             # print((velocity == 0) and (on_or_off == 'Note_on_c'))
