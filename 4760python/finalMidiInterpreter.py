@@ -112,22 +112,42 @@ for filename in os.listdir(directory):
         prev_x2_duration = None
         prev_x3_duration = None
 
-        for note_array in processed_data:
-            curr_note = int(note_array[0])
-            curr_duration = float(note_array[3])
+        
+        for note_array_index in range(len(processed_data)):
+            
 
+            curr_start_time = int(processed_data[note_array_index][1])
+            #Note Parallel Algo
+            curr_note = []
+            curr_duration = []
+            for note_array_index_2 in range(note_array_index,len(processed_data)-note_array_index):
+                if(processed_data[note_array_index_2][1] != curr_start_time):
+                    break
+                curr_note.append(int(processed_data[note_array_index_2][0]))
+                curr_duration.append(float(processed_data[note_array_index_2][3]))
+
+
+            ###This loop is 4D because it loops through the past 4 states of our chain which goes through the entire song. This makes concurrently
+            # played notes get counted properly in our giant accumulator###
             if (prev_x3_note != None):
-                curr_markov_index_n = int(curr_note - 48)
-                prev_markov_index_n = int(prev_note - 48)
-                prev_x2_markov_index_n = int(prev_x2_note - 48)
-                prev_x3_markov_index_n = int(prev_x3_note - 48)
-                markov_note[prev_markov_index_n, prev_x2_markov_index_n, prev_x3_markov_index_n, curr_markov_index_n] += 1
+                for curr_note_index in range(len(curr_note)):
+                    for prev_note_index in range(len(prev_note)):
+                        for prev_x2_note_index in range(len(prev_x2_note)):
+                            for prev_x3_note_index in range(len(prev_x3_note)):
+                                curr_markov_index_n = int(curr_note[curr_note_index] - 48)
+                                prev_markov_index_n = int(prev_note[prev_note_index] - 48)
+                                prev_x2_markov_index_n = int(prev_x2_note[prev_x2_note_index] - 48)
+                                prev_x3_markov_index_n = int(prev_x3_note[prev_x3_note_index] - 48)
+                                
 
-                curr_markov_index_d = int(curr_duration / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
-                prev_markov_index_d = int(prev_duration / 0.125) - 1
-                prev_x2_markov_index_d = int(prev_x2_duration / 0.125) - 1
-                prev_x3_markov_index_d = int(prev_x3_duration / 0.125) - 1
-                markov_duration[prev_markov_index_d][prev_x2_markov_index_d][prev_x3_markov_index_d][curr_markov_index_d] += 1
+                                curr_markov_index_d = int(curr_duration[curr_note_index] / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
+                                prev_markov_index_d = int(prev_duration[prev_note_index] / 0.125) - 1
+                                prev_x2_markov_index_d = int(prev_x2_duration[prev_x2_note_index] / 0.125) - 1
+                                prev_x3_markov_index_d = int(prev_x3_duration[prev_x3_note_index] / 0.125) - 1
+
+
+                                markov_note[prev_markov_index_n, prev_x2_markov_index_n, prev_x3_markov_index_n, curr_markov_index_n] += 1
+                                markov_duration[prev_markov_index_d][prev_x2_markov_index_d][prev_x3_markov_index_d][curr_markov_index_d] += 1
 
             
             #notes
