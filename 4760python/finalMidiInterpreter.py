@@ -3,94 +3,100 @@ import pandas as pd
 import os
 import numpy as np
 
+#Pathnames for files to be loaded from or saved to
+curr_path = os.path.dirname(os.path.abspath(__file__)) #current path
+midiFile = os.path.join(curr_path, "test4.mid") #midiFile to be parsed
+outFile = os.path.join(curr_path, "output.csv") #Raw CSV from midi file
+no_headers_csv = os.path.join(curr_path, "no_headers.csv") #CSV after removing the headers and footers
+processed_data_csv = os.path.join(curr_path, "processed_data.csv") #Contains: Note, start time, end time, duration (end time-start time)
+markov_note_file = os.path.join(curr_path, "MarkovNote.txt") #Markov chains generated for notes-to be added to header file in PIC32
+markov_duration_file = os.path.join(curr_path, "MarkovDuration.txt") #Markov chains generated for duration-to be added to header file in PIC32
 
-curr_path = os.path.dirname(os.path.abspath(__file__))
-midiFile = os.path.join(curr_path, "test4.mid")
-outFile = os.path.join(curr_path, "output.csv")
-pre_processed = os.path.join(curr_path, "pre_processed.csv")
-processed_data_csv = os.path.join(curr_path, "processed_data.csv")
-markov_note_file = os.path.join(curr_path, "MarkovNote.txt")
-markov_duration_file = os.path.join(curr_path, "MarkovDuration.txt")
-
-markov_note = np.full((13,13,13,13),0)
+#create numpy array that is 13x13x13x13 for notes and 8x8x8x8 for duration. All populated by 0s
+markov_note = np.full((13,13,13,13),0) 
 markov_duration = np.full((8,8,8,8),0)
 
+#Parse midi file and convert to CSV
 directory = os.path.join(curr_path, 'training-data')
 for filename in os.listdir(directory):
     if filename.endswith(".mid") or filename.endswith(".midi"):
         midiFile = os.path.join(directory, filename)
-        print(filename)
         # Load the MIDI file and parse it into CSV format
         csv_string = pm.midi_to_csv(midiFile)
-
-        with open(outFile, "w") as f:
+        with open(outFile, "w") as f: #write to output.csv file
             f.write("a, b, c, d, e, f\n")
             f.writelines(csv_string)
             f.close()
 
 
-
         endMidi = pd.read_csv(outFile,error_bad_lines=False)
 
-        temp = endMidi.loc[[0]].to_numpy()
-
+        #access the first row and convert to numpy array, to get the ticks per beat
+        firstRow = endMidi.loc[[0]].to_numpy()  
         #(Note_off - Note_on)/ ticks_per_beat = note type (1/8th etc)
-        ticks_per_beat = temp[0,5]
+        ticks_per_beat = firstRow[0,5]
         if (type(ticks_per_beat) == str):
-            ticks_per_beat.strip()
+            ticks_per_beat.strip() #remove whitespaces from the string, only store the number. To be converted to float
         ticks_per_beat = float(ticks_per_beat)
 
 
-        endMidi.drop(endMidi.columns[[0,3]], axis=1,inplace = True)
-        for row_index in range(endMidi.shape[0]):
+        endMidi.drop(endMidi.columns[[0,3]], axis=1,inplace = True) #remove columns 0 to 3. Modify inplace, not a copy
 
+        # .shape returns the dimensions of the dataframe
+        # Check every row for the first instance of "Note_on_C" to show the start of a note being played. Delete all prior rows
+        for row_index in range(endMidi.shape[0]): 
             if (endMidi.iloc[row_index, 1]).strip() == 'Note_on_c':
-                endMidi = endMidi.iloc[row_index:]
-                break
+                endMidi = endMidi.iloc[row_index:] #Delete every row before this first instance of note_on_c
+                break 
 
+        #check every row from the bottom for the first instance of "Note_off_C" or "Note_on_C" 
+        #Delete every row after it
         for row_index in range(endMidi.shape[0] - 1, -1, -1):
             if ((endMidi.iloc[row_index, 1].strip() == 'Note_on_c') or (endMidi.iloc[row_index, 1].strip() == 'Note_off_c')):
                 endMidi = endMidi.iloc[:row_index]
                 break
             
+        #convert this dataframe with removed headers and footers to CSV 
+        endMidi.to_csv(no_headers_csv, index = False)
 
-        endMidi.to_csv(pre_processed, index = False)
-
-
-        endMidi = endMidi.to_numpy()
-
+        endMidi = endMidi.to_numpy() #convert to numpy array
 
         processed_data = []
 
-        #1 loop through frequencies in csv (column 3)
-        #2 identify unique frequencies, insert them in 2D array and note start time (assuming first hit of unique freq is always turn on)
-        #3 as soon as we identify a repeated frequency, we note end time, subtract to get duration (assuming second hit of freq is always turn off)
-
+        #1 loop through the notes in csv (column 3)
+        #2 identify unique notes, insert them in 2D array and store the start time (assuming first hit of unique note is always turn on)
+        #3 as soon as we identify a repeated note, we get the end time, subtract to get duration (assuming second hit of note is always turn off)
+        # 2D array contains: (notes, start time, end time, duration)
         for index in range(endMidi.shape[0]):
-            on_or_off = endMidi[index, 1] #on_or_off is a string
+            on_or_off = endMidi[index, 1] #store on_or_off string value
             if (type(on_or_off) == str):
-                on_or_off = on_or_off.strip()
+                on_or_off = on_or_off.strip() #remove whitespace
 
-            if ((on_or_off != 'Note_on_c' and on_or_off != 'Note_off_c') or int(endMidi[index][2]) < 48 + 24 or int(endMidi[index][2]) > 60 + 24):
+            #skips over rows that don't contain note_on_c or note_off_c or have notes out of range from our implementation
+            if ((on_or_off != 'Note_on_c' and on_or_off != 'Note_off_c') or int(endMidi[index][2]) < 48 or int(endMidi[index][2]) > 60):
                 continue
             
+            #get velocity, having a note on with velocity = 0 is equivalent to note_off
             velocity = endMidi[index, 3]
             if (type(velocity) == str):
                 velocity = velocity.strip()
                 velocity = int(velocity)
-            # print(on_or_off)
-            # print(velocity )
-            # print((velocity == 0) and (on_or_off == 'Note_on_c'))
+
+            #if the note is on, add its note value and start tick to 2D array
             if (on_or_off ==  'Note_on_c') and (velocity != 0):
                 processed_data.append([endMidi[index, 2], endMidi[index, 0], None, None])
+            #else if the note is off, find the off by iterating from the bottom of the dataset
+            #to find corresponding on, it will be the first note on after this index
+            #if index 3 
+            #to record second off properly you have to start from the bottom ***ask about this again, we dont seem to fully grasp this
             elif ((velocity == 0) and (on_or_off == 'Note_on_c')) or (on_or_off ==  'Note_off_c'):
                 for index2 in range(len(processed_data) - 1, -1, -1): #ind_array = individual array in processed data
-                    if (endMidi[index, 2] == processed_data[index2][0]):
-                        processed_data[index2][2] = endMidi[index, 0]
-                        processed_data[index2][3] = (processed_data[index2][2] - processed_data[index2][1]) / ticks_per_beat #note type (quarter note, half note, full note etc )
+                    if (endMidi[index, 2] == processed_data[index2][0]): #if the notes are the same
+                        processed_data[index2][2] = endMidi[index, 0] #store the start ticks
+                        processed_data[index2][3] = (processed_data[index2][2] - processed_data[index2][1]) / ticks_per_beat #store duration: note type (quarter note, half note, full note etc )
                         processed_data[index2][3] *= 8
-                        processed_data[index2][3] = round(processed_data[index2][3])
-                        if (processed_data[index2][3] == 0):
+                        processed_data[index2][3] = round(processed_data[index2][3]) #multiply by 8 and round to round to nearest .125
+                        if (processed_data[index2][3] == 0): #if
                             processed_data[index2][3] = 1
                         if (processed_data[index2][3] > 8):
                             processed_data[index2][3] = 8
@@ -220,8 +226,3 @@ f.close()
 processed_data_df = pd.DataFrame(processed_data)
 
 processed_data_df.to_csv(outFile,index = False)
-
-
-
-
-
