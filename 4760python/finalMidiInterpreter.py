@@ -19,6 +19,7 @@ directory = os.path.join(curr_path, 'training-data')
 for filename in os.listdir(directory):
     if filename.endswith(".mid") or filename.endswith(".midi"):
         midiFile = os.path.join(directory, filename)
+        print(filename)
         # Load the MIDI file and parse it into CSV format
         csv_string = pm.midi_to_csv(midiFile)
 
@@ -32,18 +33,17 @@ for filename in os.listdir(directory):
         endMidi = pd.read_csv(outFile,error_bad_lines=False)
 
         temp = endMidi.loc[[0]].to_numpy()
-        print(temp)
+
         #(Note_off - Note_on)/ ticks_per_beat = note type (1/8th etc)
         ticks_per_beat = temp[0,5]
         if (type(ticks_per_beat) == str):
             ticks_per_beat.strip()
         ticks_per_beat = float(ticks_per_beat)
-        print(ticks_per_beat)
-        print(type(ticks_per_beat))
+
 
         endMidi.drop(endMidi.columns[[0,3]], axis=1,inplace = True)
         for row_index in range(endMidi.shape[0]):
-            print(endMidi.iloc[row_index,1])
+
             if (endMidi.iloc[row_index, 1]).strip() == 'Note_on_c':
                 endMidi = endMidi.iloc[row_index:]
                 break
@@ -58,7 +58,7 @@ for filename in os.listdir(directory):
 
 
         endMidi = endMidi.to_numpy()
-        print(endMidi.shape)
+
 
         processed_data = []
 
@@ -71,7 +71,7 @@ for filename in os.listdir(directory):
             if (type(on_or_off) == str):
                 on_or_off = on_or_off.strip()
 
-            if ((on_or_off != 'Note_on_c' and on_or_off != 'Note_off_c') or int(endMidi[index][2]) < 48 or int(endMidi[index][2]) > 60):
+            if ((on_or_off != 'Note_on_c' and on_or_off != 'Note_off_c') or int(endMidi[index][2]) < 48 + 24 or int(endMidi[index][2]) > 60 + 24):
                 continue
             
             velocity = endMidi[index, 3]
@@ -123,8 +123,11 @@ for filename in os.listdir(directory):
             for note_array_index_2 in range(note_array_index,len(processed_data)-note_array_index):
                 if(processed_data[note_array_index_2][1] != curr_start_time):
                     break
-                curr_note.append(int(processed_data[note_array_index_2][0]))
-                curr_duration.append(float(processed_data[note_array_index_2][3]))
+                try:
+                    curr_note.append(int(processed_data[note_array_index_2][0]))
+                    curr_duration.append(float(processed_data[note_array_index_2][3]))
+                except:
+                    continue
 
 
             ###This loop is 4D because it loops through the past 4 states of our chain which goes through the entire song. This makes concurrently
@@ -134,20 +137,23 @@ for filename in os.listdir(directory):
                     for prev_note_index in range(len(prev_note)):
                         for prev_x2_note_index in range(len(prev_x2_note)):
                             for prev_x3_note_index in range(len(prev_x3_note)):
-                                curr_markov_index_n = int(curr_note[curr_note_index] - 48)
-                                prev_markov_index_n = int(prev_note[prev_note_index] - 48)
-                                prev_x2_markov_index_n = int(prev_x2_note[prev_x2_note_index] - 48)
-                                prev_x3_markov_index_n = int(prev_x3_note[prev_x3_note_index] - 48)
-                                
+                                try:
+                                    curr_markov_index_n = int(curr_note[curr_note_index] - (48 + 24))
+                                    prev_markov_index_n = int(prev_note[prev_note_index] - (48 + 24))
+                                    prev_x2_markov_index_n = int(prev_x2_note[prev_x2_note_index] - (48 + 24))
+                                    prev_x3_markov_index_n = int(prev_x3_note[prev_x3_note_index] - (48 + 24))
+                                    
 
-                                curr_markov_index_d = int(curr_duration[curr_note_index] / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
-                                prev_markov_index_d = int(prev_duration[prev_note_index] / 0.125) - 1
-                                prev_x2_markov_index_d = int(prev_x2_duration[prev_x2_note_index] / 0.125) - 1
-                                prev_x3_markov_index_d = int(prev_x3_duration[prev_x3_note_index] / 0.125) - 1
+                                    curr_markov_index_d = int(curr_duration[curr_note_index] / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
+                                    prev_markov_index_d = int(prev_duration[prev_note_index] / 0.125) - 1
+                                    prev_x2_markov_index_d = int(prev_x2_duration[prev_x2_note_index] / 0.125) - 1
+                                    prev_x3_markov_index_d = int(prev_x3_duration[prev_x3_note_index] / 0.125) - 1
 
 
-                                markov_note[prev_markov_index_n, prev_x2_markov_index_n, prev_x3_markov_index_n, curr_markov_index_n] += 1
-                                markov_duration[prev_markov_index_d][prev_x2_markov_index_d][prev_x3_markov_index_d][curr_markov_index_d] += 1
+                                    markov_note[prev_markov_index_n, prev_x2_markov_index_n, prev_x3_markov_index_n, curr_markov_index_n] += 1
+                                    markov_duration[prev_markov_index_d][prev_x2_markov_index_d][prev_x3_markov_index_d][curr_markov_index_d] += 1
+                                except:
+                                    continue
 
             
             #notes
