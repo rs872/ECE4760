@@ -11,10 +11,12 @@ no_headers_csv = os.path.join(curr_path, "no_headers.csv") #CSV after removing t
 processed_data_csv = os.path.join(curr_path, "processed_data.csv") #Contains: Note, start time, end time, duration (end time-start time)
 markov_note_file = os.path.join(curr_path, "MarkovNote.txt") #Markov chains generated for notes-to be added to header file in PIC32
 markov_duration_file = os.path.join(curr_path, "MarkovDuration.txt") #Markov chains generated for duration-to be added to header file in PIC32
+markov_octave_file = os.path.join(curr_path, "MarkovOctave.txt") #Markov chains generated for ocatve-to be added to header file in PIC32
+
 
 #create numpy array that is 13x13x13x13 for notes and 8x8x8x8 for duration. All populated by 0s
 markov_note = np.full((12,12,12,12),0) 
-markov_octave = np.full((4,4,4,4,4,4),0) #n^6 and we have n = 4 octaves (Current octave depends on 3 notes and 2 past octaves)
+markov_octave = np.full((12,12,4,4,4),0) #n^6 and we have n = 4 octaves (Current octave depends on 3 notes and 2 past octaves)
 markov_duration = np.full((8,8,8,8),0)
 
 #Parse midi file and convert to CSV
@@ -140,22 +142,26 @@ for filename in os.listdir(directory):
                 if(processed_data[note_array_index_2][1] != curr_start_time):
                     break
                 try:
-                    curr_note.append(int(processed_data[note_array_index_2][0]))
+                    temp_note = int(processed_data[note_array_index_2][0])
+                    curr_note.append(temp_note)
                     curr_duration.append(float(processed_data[note_array_index_2][3]))
                     #this gives the octave of the current note relative to our lowest note
-                    curr_octave.append(int((processed_data[note_array_index_2] - 48) / 12))
+                    curr_octave.append(int((temp_note - 48)/ 12))
+
+                # print("This is going in curr_octaves " + str(int((processed_data[note_array_index_2] - 48) / 12)))
                     
                 except:
+                    print('in except')
                     continue
 
 
             ###This loop is 4D because it loops through the past 4 states of our chain which goes through the entire song. This makes concurrently
             # played notes get counted properly in our giant accumulator###
             if (prev_x3_note != None):
-                for prev_x3_note_index in range(len(curr_note)):
-                    for prev_x2_note_index in range(len(prev_note)):
-                        for prev_note_index in range(len(prev_x2_note)):
-                            for curr_note_index in range(len(prev_x3_note)):
+                for prev_note_index in range(len(prev_note)):
+                    for prev_x2_note_index in range(len(prev_x2_note)):
+                        for prev_x3_note_index in range(len(prev_x3_note)):
+                            for curr_note_index in range(len(curr_note)):
                                 try:
                                     curr_markov_index_n = (int(curr_note[curr_note_index] - 48)) % 12
                                     prev_markov_index_n = (int(prev_note[prev_note_index] - 48)) % 12
@@ -176,18 +182,19 @@ for filename in os.listdir(directory):
                                 except:
                                     continue
 
-                            for curr_octave_index in range(len(curr_octave)):
-                                for prev_octave_index in range(len(prev_octave)):
-                                    for prev_x2_octave_index in range(len(prev_x2_octave)):
-                                        curr_markov_index_n = (int(prev_note[prev_note_index] - 48)) % 12
-                                        prev_markov_index_n = (int(prev_x2_note[prev_x2_note_index] - 48)) % 12
-                                        prev_x2_markov_index_n = (int(prev_x3_note[prev_x2_note_index] - 48)) % 12     
+                        for curr_octave_index in range(len(curr_octave)):
+                            for prev_octave_index in range(len(prev_octave)):
+                                for prev_x2_octave_index in range(len(prev_x2_octave)):
+                                    prev_markov_index_n = (int(prev_note[prev_note_index] - 48)) % 12
 
-                                        curr_octave_n =  curr_octave[curr_octave_index]
-                                        prev_octave_n =  prev_octave[prev_octave_index]
-                                        prev_x2_octave_n = prev_x2_octave[prev_x2_octave_index]        
+                                    prev_x2_markov_index_n = (int(prev_x2_note[prev_x2_note_index] - 48)) % 12
 
-                                        markov_octave[prev_markov_index_n][prev_x2_markov_index_n][prev_x3_markov_index_n][prev_octave_n][prev_x2_octave_n][curr_octave] += 1 
+                                    curr_octave_n =  curr_octave[curr_octave_index]
+                                    prev_octave_n =  prev_octave[prev_octave_index]
+                                    prev_x2_octave_n = prev_x2_octave[prev_x2_octave_index]            
+
+
+                                    markov_octave[prev_markov_index_n, prev_x2_markov_index_n, prev_octave_n, prev_x2_octave_n, curr_octave_n] += 1 
 
        
 
@@ -237,20 +244,19 @@ for i in range(markov_duration_dim):
                     markov_duration[i, j, k, t] = int(markov_duration[i, j, k, t] / accumulator)
 
 markov_octave_dim = 4
-for i in range(markov_octave_dim):
-    for j in range(markov_octave_dim):
+for i in range(markov_note_dim):
+    for j in range(markov_note_dim):
         for k in range(markov_octave_dim):
             for l in range(markov_octave_dim):
+                accumulator = 0
                 for m in range(markov_octave_dim):
-                    accumulator = 0
-                    for n in range(markov_octave_dim):
-                        accumulator += markov_octave[i, j, k, l, m, n]
-                    if (accumulator != 0):
-                        print('hi again')
-                        print((i, j, k, l, m, n))
-                        for t in range(markov_octave_dim):
-                            markov_duration[i, j, k, l, m, t] = 255 * markov_octave[i, j, k, l, m, t]
-                            markov_duration[i, j, k, l, m, t] = int(markov_octave[i, j, k, l, m, t] / accumulator)
+                    accumulator += markov_octave[i, j, k, l, m]
+                if (accumulator != 0):
+                    print('hi again')
+                    print((i, j, k, l))
+                    for t in range(markov_octave_dim):
+                        markov_octave[i, j, k, l, t] = 255 * markov_octave[i, j, k, l, t]
+                        markov_octave[i, j, k, l, t] = int(markov_octave[i, j, k, l, t] / accumulator)
                 
 
 f= open(markov_note_file,"w+")
@@ -265,6 +271,15 @@ f.close()
 f= open(markov_duration_file,"w+")
 
 coolString = np.array2string(markov_duration,threshold = np.sys.maxsize,separator=',')
+x = coolString.replace('[','{')
+y = x.replace(']','}')
+f.write(y)
+
+f.close()
+
+f= open(markov_octave_file,"w+")
+
+coolString = np.array2string(markov_octave,threshold = np.sys.maxsize,separator=',')
 x = coolString.replace('[','{')
 y = x.replace(']','}')
 f.write(y)
