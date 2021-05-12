@@ -1,3 +1,18 @@
+/* 
+ * File:   octave_markov.h
+ * Author: rs872
+ *
+ * Created on May 12, 2021, 12:43 PM
+ */
+
+#ifndef OCTAVE_MARKOV_H
+#define	OCTAVE_MARKOV_H
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
+const unsigned char markov_octave[12][12][4][4][4] = 
 {{{{{105, 76, 53, 19},
     { 85,104, 45, 20},
     { 72, 82, 82, 17},
@@ -3030,4 +3045,12 @@
    {{ 52, 24, 82, 95},
     { 23, 92, 63, 75},
     { 12, 19, 89,133},
-    { 13, 17, 68,155}}}}}
+    { 13, 17, 68,155}}}}};
+
+
+#ifdef	__cplusplus
+}
+#endif
+
+#endif	/* OCTAVE_MARKOV_H */
+

@@ -1,3 +1,14 @@
+/* 
+ * File:   duration_markov.h
+ * Author: rk524
+ *
+ * Created on April 28, 2021, 1:26 PM
+ */
+
+#ifndef DURATION_MARKOV_H
+#define	DURATION_MARKOV_H
+
+const unsigned char markov_duration[8][8][8][8] = 
 {{{{183,  7, 46, 11,  2,  0,  1,  2},
    {176, 50, 19,  4,  2,  0,  0,  1},
    {189,  5, 51,  2,  3,  0,  0,  0},
@@ -579,4 +590,18 @@
    {  2,  4,  9,  3,  9,  1,  5,219},
    {  1,  9,  8, 12, 11,  9,  6,195},
    {  0,  1, 11, 12,  1,  2, 19,207},
-   {  3,  8,  8, 13,  3,  1,  5,210}}}}
+   {  3,  8,  8, 13,  3,  1,  5,210}}}};
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
+
+
+
+#ifdef	__cplusplus
+}
+#endif
+
+#endif	/* DURATION_MARKOV_H */
+
