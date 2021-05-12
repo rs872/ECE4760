@@ -99,6 +99,14 @@ volatile fixAccum sine_table[sine_table_size];
 volatile fixAccum env_fm, wave_fm, dk_state_fm, attack_state_fm;
 volatile fixAccum env_main, wave_main,  dk_state_main, attack_state_main;
 
+
+
+volatile unsigned int phase_accum_fma, phase_incr_fma ;// 
+volatile unsigned int phase_accum_maina, phase_incr_maina ;//
+
+volatile fixAccum env_fma, wave_fma, dk_state_fma, attack_state_fma;
+volatile fixAccum env_maina, wave_maina,  dk_state_maina, attack_state_maina;
+
 // define the envelopes and tonal quality of the instruments
 #define n_synth 8 
 // 0 plucked string-like MAYBE THIS!
@@ -174,6 +182,12 @@ volatile int next_note_duration = 1; // next note predicted by algo
 volatile int prev_octave = 3;
 volatile int curr_octave = 3;
 volatile int next_octave =0;
+
+volatile int curr_notea = 0;
+volatile int next_notea = 0;
+
+volatile int curr_octavea = 3;
+volatile int next_octavea =0;
 
 char markov_trigger = 1;
 //nc - Understand how the beats work?
@@ -258,6 +272,10 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
     phase_accum_fm += phase_incr_fm ; 
     // main phase
     phase_accum_main += phase_incr_main + (Accum2int(sine_table[phase_accum_fm>>24] * env_fm)<<16) ;
+    
+    phase_accum_fma += phase_incr_fma ; 
+    // main phase
+    phase_accum_maina += phase_incr_maina + (Accum2int(sine_table[phase_accum_fma>>24] * env_fma)<<16) ;
      
      // init the exponential decays
      // by adding energy to the exponential filters 
@@ -267,11 +285,24 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
         //extracted below. 
         dk_state_fm = depth_fm[current_v1_synth]; 
         dk_state_main = onefixAccum; 
+        
+        dk_state_fma = depth_fm[current_v1_synth]; 
+        dk_state_maina = onefixAccum; 
+        
+        
         attack_state_fm = depth_fm[current_v1_synth]; 
         attack_state_main = onefixAccum; 
+        
+        attack_state_fma = depth_fm[current_v1_synth]; 
+        attack_state_maina = onefixAccum; 
+        
         play_trigger = 0; 
         phase_accum_fm = 0;
         phase_accum_main = 0;
+        
+        phase_accum_fma = 0;
+        phase_accum_maina = 0;
+        
         dk_interval = 0;
         sustain_state = 0;
         flag_attack_done = 0;
@@ -295,15 +326,26 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
             dk_state_fm = dk_state_fm * decay_fm[current_v1_synth] ;
             //  approximate the first order main waveform decay  ODE
             dk_state_main = dk_state_main * decay_main[current_v1_synth] ;
+            
+            dk_state_fma = dk_state_fma * decay_fm[current_v1_synth] ;
+            //  approximate the first order main waveform decay  ODE
+            dk_state_maina = dk_state_maina * decay_main[current_v1_synth] ;
         //}
         // approximate the ODE for the exponential rise FM/main waveform
         attack_state_fm = attack_state_fm * attack_fm[current_v1_synth];
         attack_state_main = attack_state_main * attack_main[current_v1_synth];
+        
+        attack_state_fma = attack_state_fma * attack_fm[current_v1_synth];
+        attack_state_maina = attack_state_maina * attack_main[current_v1_synth];
         // product of rise and fall is the FM envelope
         // fm_depth is the current value of the function
         env_fm = (depth_fm[current_v1_synth] - attack_state_fm) * dk_state_fm ;
+        
+        env_fma = (depth_fm[current_v1_synth] - attack_state_fma) * dk_state_fma ;
         // product of rise and fall is the main envelope
         env_main = (onefixAccum - attack_state_main) * dk_state_main ;
+        
+        env_maina = (onefixAccum - attack_state_maina) * dk_state_maina ;
      
     }
 
@@ -317,8 +359,10 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
      WriteSPI2(DAC_data); 
     
     wave_main = sine_table[phase_accum_main>>24] * env_main;
+    
+    wave_maina = sine_table[phase_accum_maina>>24] * env_maina;
     // truncate to 12 bits, read table, convert to int and add offset
-    DAC_data = DAC_config_chan_A | (Accum2int(wave_main) + 2048) ; 
+    DAC_data = DAC_config_chan_A | ((int)(Accum2int(wave_main)*0.33) + (int)(Accum2int(wave_maina)*0.33) + 2048) ; 
     // test for done
     while (SPI2STATbits.SPIBUSY); // wait for end of transaction
      // CS high
@@ -382,7 +426,7 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
                             curr_note_duration = next_note_duration;
                             prev_prev_note =  prev_note;
                             prev_note = curr_note;
-                            curr_note = next_note;                            
+                            curr_note = next_note;                       
                             phase_incr_fm = freq_fm[current_v1_synth]*notesDEF[curr_note]*(float)two32/Fs; 
                             phase_incr_main = freq_main[current_v1_synth]*notesDEF[curr_note]*(float)two32/Fs; 
                             markov_trigger = 1;
@@ -451,6 +495,20 @@ static PT_THREAD (protothread_markov(struct pt *pt))
             }
             
             cum_prob = 0;
+            
+            random_num = rand() % 255; //255*17
+            for (i=0; i<13; i++){
+                cum_prob += (unsigned long int)
+                            markov_notes[curr_note][prev_note][prev_prev_note][i];
+//                printf("Markov Value is is %d\n", markov_notes[curr_note][prev_note][prev_prev_note][i]);
+                if(cum_prob >= random_num){
+//                    printf("Markov Thread. Next Note Pitch %d\n", next_note);
+                    next_notea = i;
+                    break;
+                }
+            }
+            
+            cum_prob = 0;
             random_num = rand() % 255; //255*17
             for (i=0; i<4; i++){
                 cum_prob += (unsigned long int)
@@ -462,6 +520,20 @@ static PT_THREAD (protothread_markov(struct pt *pt))
                     break;
                 }
             }
+            
+            cum_prob = 0;
+            random_num = rand() % 255; //255*17
+            for (i=0; i<4; i++){
+                cum_prob += (unsigned long int)
+                            markov_octave[curr_note][prev_note][curr_octave][prev_octave][i];
+//                printf("Markov Value is is %d\n", markov_notes[curr_note][prev_note][prev_prev_note][i]);
+                if(cum_prob >= random_num){
+//                    printf("Markov Thread. Next Note Pitch %d\n", next_note);
+                    next_octavea = i;
+                    break;
+                }
+            }
+            
             
             // NEVER exit while
       } // END WHILE(1)
@@ -495,17 +567,27 @@ static PT_THREAD (protothread_music(struct pt *pt))
         PT_YIELD_UNTIL(pt,tempo_v1_flag==1);
         if (play_music && note_count < 100){
             printf("Music thread. Next Note Duration is %d\n", next_note_duration);
+            
             prev_prev_note_duration = prev_note_duration;
             prev_note_duration = curr_note_duration;
             curr_note_duration = next_note_duration;
+            
             prev_prev_note =  prev_note;
             prev_note = curr_note;
             curr_note = next_note;             
+            
             prev_octave =  curr_octave;
             curr_octave = next_octave;
+            
+            curr_notea = next_notea;
+            
+            curr_octavea = next_octavea;
 
             phase_incr_fm = freq_fm[current_v1_synth]*notesDEF[curr_note + 12 * curr_octave]*(float)two32/Fs; 
-            phase_incr_main = freq_main[current_v1_synth]*notesDEF[curr_note + 12 * curr_octave]*(float)two32/Fs; 
+            phase_incr_main = freq_main[current_v1_synth]*notesDEF[curr_note + 12 * curr_octave]*(float)two32/Fs;
+            
+            phase_incr_fma = freq_fm[current_v1_synth]*notesDEF[curr_notea + 12 * curr_octavea]*(float)two32/Fs; 
+            phase_incr_maina = freq_main[current_v1_synth]*notesDEF[curr_notea + 12 * curr_octavea]*(float)two32/Fs; 
             markov_trigger = 1;
             play_trigger = 1;
             tempo_v1_flag = 0;
