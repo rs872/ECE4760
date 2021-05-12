@@ -89,15 +89,20 @@ for filename in os.listdir(directory):
             elif ((velocity == 0) and (on_or_off == 'Note_on_c')) or (on_or_off ==  'Note_off_c'):
                 #elif the note is off, start iterating from the bottom of the processed_data (not endMidi)
                 for index2 in range(len(processed_data) - 1, -1, -1): 
-                    #if the endMidi off note is same as the most recently added note in processed_data, we can be assured that that is an on note
+                    #if the endMidi off note (lets say it's 50) is same as the most recently added note (of the same kind, so 50) in processed_data, 
+                    #we can be assured that that is an on note
                     if (endMidi[index, 2] == processed_data[index2][0]): 
                         #hence, save as end time on index2 note of processed_data, the time of the index note in endMidi
                         processed_data[index2][2] = endMidi[index, 0] 
                         #store duration: note type (quarter note, half note, full note etc )
                         processed_data[index2][3] = (processed_data[index2][2] - processed_data[index2][1]) / ticks_per_beat
+                        #multiply by 8 because our smallest duration is 0.125 and we want to normalize to 1. Since there are a lot of decimals durations,
+                        #the code below is a way to round them all off to multiples of 0.125.
                         
+                        #so first multiply by 8
                         processed_data[index2][3] *= 8
-                        processed_data[index2][3] = round(processed_data[index2][3]) #multiply by 8 and round to round to nearest .125
+                        #now round to a decimal
+                        processed_data[index2][3] = round(processed_data[index2][3]) 
                         if (processed_data[index2][3] == 0): #if
                             processed_data[index2][3] = 1
                         if (processed_data[index2][3] > 8):
