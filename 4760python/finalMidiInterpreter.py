@@ -85,15 +85,17 @@ for filename in os.listdir(directory):
             #if the note is on, add its note value and start tick to 2D array
             if (on_or_off ==  'Note_on_c') and (velocity != 0):
                 processed_data.append([endMidi[index, 2], endMidi[index, 0], None, None])
-            #else if the note is off, find the off by iterating from the bottom of the dataset
-            #to find corresponding on, it will be the first note on after this index
-            #if index 3 
-            #to record second off properly you have to start from the bottom ***ask about this again, we dont seem to fully grasp this
+            
             elif ((velocity == 0) and (on_or_off == 'Note_on_c')) or (on_or_off ==  'Note_off_c'):
-                for index2 in range(len(processed_data) - 1, -1, -1): #ind_array = individual array in processed data
-                    if (endMidi[index, 2] == processed_data[index2][0]): #if the notes are the same
-                        processed_data[index2][2] = endMidi[index, 0] #store the start ticks
-                        processed_data[index2][3] = (processed_data[index2][2] - processed_data[index2][1]) / ticks_per_beat #store duration: note type (quarter note, half note, full note etc )
+                #elif the note is off, start iterating from the bottom of the processed_data (not endMidi)
+                for index2 in range(len(processed_data) - 1, -1, -1): 
+                    #if the endMidi off note is same as the most recently added note in processed_data, we can be assured that that is an on note
+                    if (endMidi[index, 2] == processed_data[index2][0]): 
+                        #hence, save as end time on index2 note of processed_data, the time of the index note in endMidi
+                        processed_data[index2][2] = endMidi[index, 0] 
+                        #store duration: note type (quarter note, half note, full note etc )
+                        processed_data[index2][3] = (processed_data[index2][2] - processed_data[index2][1]) / ticks_per_beat
+                        
                         processed_data[index2][3] *= 8
                         processed_data[index2][3] = round(processed_data[index2][3]) #multiply by 8 and round to round to nearest .125
                         if (processed_data[index2][3] == 0): #if
