@@ -53,7 +53,7 @@ for filename in os.listdir(directory):
                 endMidi = endMidi.iloc[:row_index]
                 break
             
-
+        # endMidi = endMidi.drop(endMidi.tail(1).index)
         endMidi.to_csv(pre_processed, index = False)
 
 
@@ -76,9 +76,6 @@ for filename in os.listdir(directory):
                 velocity = int(velocity)
             if (type(on_or_off) == str):
                 on_or_off = on_or_off.strip()
-            # print(on_or_off)
-            # print(velocity )
-            # print((velocity == 0) and (on_or_off == 'Note_on_c'))
             if (on_or_off ==  'Note_on_c') and (velocity != 0):
                 processed_data.append([endMidi[index, 2], endMidi[index, 0], None, None])
             elif ((velocity == 0) and (on_or_off == 'Note_on_c')) or (on_or_off ==  'Note_off_c'):
