@@ -296,19 +296,19 @@ f= open(seeds_file,"w+")
 coolString = np.array2string(np.array(note_seeds),threshold = np.sys.maxsize,separator=',')
 x = coolString.replace('[','{')
 y = x.replace(']','}')
-f.write('const unsigned char note_seeds [' + str(len(note_seeds)) + ']\n')
+f.write('const unsigned char note_seeds [' + str(len(note_seeds)) + '] = \n')
 f.write(y)
 
 coolString = np.array2string(np.array(duration_seeds),threshold = np.sys.maxsize,separator=',')
 x = coolString.replace('[','{')
 y = x.replace(']','}')
-f.write('\nconst unsigned char duration_seeds [' + str(len(duration_seeds)) + ']\n')
+f.write('\nconst unsigned char duration_seeds [' + str(len(duration_seeds)) + '] = \n')
 f.write(y)
 
 coolString = np.array2string(np.array(octave_seeds),threshold = np.sys.maxsize,separator=',')
 x = coolString.replace('[','{')
 y = x.replace(']','}')
-f.write('\nconst unsigned char octave_seeds [' + str(len(octave_seeds)) + ']\n')
+f.write('\nconst unsigned char octave_seeds [' + str(len(octave_seeds)) + '] = \n')
 f.write(y)
 
 

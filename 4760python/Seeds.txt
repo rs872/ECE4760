@@ -1,4 +1,4 @@
-const unsigned char note_seeds [397]
+const unsigned char note_seeds [397] = 
 {{ 0, 0, 0},
  { 0, 0, 2},
  { 0, 0, 3},
@@ -396,7 +396,7 @@ const unsigned char note_seeds [397]
  {11,11, 6},
  {11,11, 9},
  {11,11,11}}
-const unsigned char duration_seeds [30]
+const unsigned char duration_seeds [30] = 
 {{0,0,0},
  {0,0,7},
  {0,3,0},
@@ -427,7 +427,7 @@ const unsigned char duration_seeds [30]
  {7,7,1},
  {7,7,3},
  {7,7,7}}
-const unsigned char octave_seeds [317]
+const unsigned char octave_seeds [317] = 
 {{ 0, 0, 1, 1},
  { 0, 0, 2, 3},
  { 0, 0, 3, 2},
