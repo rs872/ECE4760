@@ -189,6 +189,7 @@ for filename in os.listdir(directory):
 
                                     markov_octave[prev_markov_index_n, prev_x2_markov_index_n, prev_octave_n, prev_x2_octave_n, curr_octave_n] += 1 
             
+            if (prev_x2_duration != None):
                 for prev_duration_index in range(len(prev_duration)):
                     for prev_x2_duration_index in range(len(prev_x2_duration)):
                         for curr_duration_index in range(len(curr_duration)):
