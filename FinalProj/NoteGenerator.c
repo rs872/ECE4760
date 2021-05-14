@@ -29,6 +29,7 @@
 #include "Notes.h"
 #include "note_markov.h"
 #include "duration_markov.h"
+#include "octave_markov.h"
 ////////////////////////////////////
 
 // === thread structures ============================================
@@ -54,6 +55,7 @@ typedef _Accum fixAccum  ;
 // === GCC 0.16 format ===============================================
 #define float2Fract(a) ((_Fract)(a))
 #define Fract2float(a) ((float)(a))
+
 // the native type is _Accum but that is ugly
 typedef _Fract fixFract  ;
 fixFract onefixFract = float2Fract(0.9999);
@@ -96,6 +98,14 @@ volatile fixAccum sine_table[sine_table_size];
 // envelope: FM and main frequency
 volatile fixAccum env_fm, wave_fm, dk_state_fm, attack_state_fm;
 volatile fixAccum env_main, wave_main,  dk_state_main, attack_state_main;
+
+
+
+volatile unsigned int phase_accum_fma, phase_incr_fma ;// 
+volatile unsigned int phase_accum_maina, phase_incr_maina ;//
+
+volatile fixAccum env_fma, wave_fma, dk_state_fma, attack_state_fma;
+volatile fixAccum env_maina, wave_maina,  dk_state_maina, attack_state_maina;
 
 // define the envelopes and tonal quality of the instruments
 #define n_synth 8 
@@ -143,15 +153,13 @@ int current_v1_synth=0, current_v2_synth=0 ;
 //1 in the sub_divs is a quarter-note
 //This array is analagous to note duration
 //16th, 8th, dotted_8th, quarter, dotted_quarter, half, dotted half, whole
+#define note_dimension 12
 _Accum sub_divs[8] = {0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4};
 int tempo_v1_flag, tempo_v2_flag;
 int current_v1_tempo=1, current_v2_tempo=2;
 int tempo_v1_count, tempo_v2_count;
 unsigned int cycles_per_beat = BPM_SCALER/BPM;
-int prev_prev_note_duration = 0;
-int prev_note_duration = 0;
-int curr_note_duration = 0;
-int next_note_duration = 0;
+
 
 //MARKOV CHAIN - DURATION
 //matrix of probabilities, each row needs to sum up to 1
@@ -159,12 +167,27 @@ int next_note_duration = 0;
 
 //Flash memory is 128K bytes but approximating ~28K bytes for the code, we have ~100K bytes for the 
 //note markov chain. Hence, we could have 17^4 = 83.5K bytes
-#define MARKOVDIM 17 
+#define MARKOVDIM 12 
 
-volatile int prev_prev_note = 0;
-volatile int prev_note = 0;
-volatile int curr_note = 0;
+volatile int prev_prev_note = 4;//rightmost
+volatile int prev_note = 0; //center
+volatile int curr_note = 0;//leftmost
 volatile int next_note = 0;
+
+volatile int prev_prev_note_duration = 7; //rightmost
+volatile int prev_note_duration = 5; //middle of tuple
+volatile int curr_note_duration = 4; //leftmost of tuple
+volatile int next_note_duration = 1; // next note predicted by algo
+
+volatile int prev_octave = 3;
+volatile int curr_octave = 3;
+volatile int next_octave =0;
+
+volatile int curr_notea = 0;
+volatile int next_notea = 0;
+
+volatile int curr_octavea = 3;
+volatile int next_octavea =0;
 
 char markov_trigger = 1;
 //nc - Understand how the beats work?
@@ -214,6 +237,8 @@ char new_toggle = 0;
 char new_slider = 0;
 char new_list = 0 ;
 char new_radio = 0 ;
+char play_music = 0;
+char note_count = 0; // max 255
 // identifiers and values of controls
 // curent button
 char button_id, button_value ;
@@ -247,6 +272,10 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
     phase_accum_fm += phase_incr_fm ; 
     // main phase
     phase_accum_main += phase_incr_main + (Accum2int(sine_table[phase_accum_fm>>24] * env_fm)<<16) ;
+    
+    phase_accum_fma += phase_incr_fma ; 
+    // main phase
+    phase_accum_maina += phase_incr_maina + (Accum2int(sine_table[phase_accum_fma>>24] * env_fma)<<16) ;
      
      // init the exponential decays
      // by adding energy to the exponential filters 
@@ -256,11 +285,24 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
         //extracted below. 
         dk_state_fm = depth_fm[current_v1_synth]; 
         dk_state_main = onefixAccum; 
+        
+        dk_state_fma = depth_fm[current_v1_synth]; 
+        dk_state_maina = onefixAccum; 
+        
+        
         attack_state_fm = depth_fm[current_v1_synth]; 
         attack_state_main = onefixAccum; 
+        
+        attack_state_fma = depth_fm[current_v1_synth]; 
+        attack_state_maina = onefixAccum; 
+        
         play_trigger = 0; 
         phase_accum_fm = 0;
         phase_accum_main = 0;
+        
+        phase_accum_fma = 0;
+        phase_accum_maina = 0;
+        
         dk_interval = 0;
         sustain_state = 0;
         flag_attack_done = 0;
@@ -284,15 +326,26 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
             dk_state_fm = dk_state_fm * decay_fm[current_v1_synth] ;
             //  approximate the first order main waveform decay  ODE
             dk_state_main = dk_state_main * decay_main[current_v1_synth] ;
+            
+            dk_state_fma = dk_state_fma * decay_fm[current_v1_synth] ;
+            //  approximate the first order main waveform decay  ODE
+            dk_state_maina = dk_state_maina * decay_main[current_v1_synth] ;
         //}
         // approximate the ODE for the exponential rise FM/main waveform
         attack_state_fm = attack_state_fm * attack_fm[current_v1_synth];
         attack_state_main = attack_state_main * attack_main[current_v1_synth];
+        
+        attack_state_fma = attack_state_fma * attack_fm[current_v1_synth];
+        attack_state_maina = attack_state_maina * attack_main[current_v1_synth];
         // product of rise and fall is the FM envelope
         // fm_depth is the current value of the function
         env_fm = (depth_fm[current_v1_synth] - attack_state_fm) * dk_state_fm ;
+        
+        env_fma = (depth_fm[current_v1_synth] - attack_state_fma) * dk_state_fma ;
         // product of rise and fall is the main envelope
         env_main = (onefixAccum - attack_state_main) * dk_state_main ;
+        
+        env_maina = (onefixAccum - attack_state_maina) * dk_state_maina ;
      
     }
 
@@ -306,8 +359,10 @@ void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
      WriteSPI2(DAC_data); 
     
     wave_main = sine_table[phase_accum_main>>24] * env_main;
+    
+    wave_maina = sine_table[phase_accum_maina>>24] * env_maina;
     // truncate to 12 bits, read table, convert to int and add offset
-    DAC_data = DAC_config_chan_A | (Accum2int(wave_main) + 2048) ; 
+    DAC_data = DAC_config_chan_A | ((int)(Accum2int(wave_main)*0.33) + (int)(Accum2int(wave_maina)*0.33) + 2048) ; 
     // test for done
     while (SPI2STATbits.SPIBUSY); // wait for end of transaction
      // CS high
@@ -363,7 +418,7 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
                          static int i;
                          tempo_v1_count = 0;
                          tempo_v1_flag = 0;
-                         for (i=0; i<56; i++){
+                         for (i=0; i<100; i++){
                             PT_YIELD_UNTIL(pt,tempo_v1_flag==1);
                             printf("Cmd thread. Next Note Duration is %d\n", next_note_duration);
                             prev_prev_note_duration = prev_note_duration;
@@ -371,7 +426,7 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
                             curr_note_duration = next_note_duration;
                             prev_prev_note =  prev_note;
                             prev_note = curr_note;
-                            curr_note = next_note;                            
+                            curr_note = next_note;                       
                             phase_incr_fm = freq_fm[current_v1_synth]*notesDEF[curr_note]*(float)two32/Fs; 
                             phase_incr_main = freq_main[current_v1_synth]*notesDEF[curr_note]*(float)two32/Fs; 
                             markov_trigger = 1;
@@ -410,7 +465,7 @@ static PT_THREAD (protothread_markov(struct pt *pt))
             // yield time 1 second
             PT_YIELD_UNTIL(pt, markov_trigger == 1) ;
             markov_trigger = 0;
-            unsigned long int random_num = rand() % 2040; //255*8 (8 buckets with each max of 255))
+            unsigned long int random_num = rand() % 255; //255*8 (8 buckets with each max of 255))
             unsigned long int cum_prob = 0;
 
             //printf("Markov Thread. Random Value = %d\n", random_num);
@@ -422,22 +477,63 @@ static PT_THREAD (protothread_markov(struct pt *pt))
                     next_note_duration = i;
                     break;
                 }
-                printf("Markov Thread. Next Note Duration %d\n", i);
+//                printf("Markov Thread. Next Note Duration %d\n", i);
             }
             //reset cumulative probability
             cum_prob = 0;
             
-            random_num = rand() % 4335; //255*17
+            random_num = rand() % 255; //255*17
             for (i=0; i<13; i++){
                 cum_prob += (unsigned long int)
                             markov_notes[curr_note][prev_note][prev_prev_note][i];
-                printf("Markov Value is is %d\n", markov_notes[curr_note][prev_note][prev_prev_note][i]);
+//                printf("Markov Value is is %d\n", markov_notes[curr_note][prev_note][prev_prev_note][i]);
                 if(cum_prob >= random_num){
-                    printf("Markov Thread. Next Note Pitch %d\n", next_note);
+//                    printf("Markov Thread. Next Note Pitch %d\n", next_note);
                     next_note = i;
                     break;
                 }
             }
+            
+            cum_prob = 0;
+            
+            random_num = rand() % 255; //255*17
+            for (i=0; i<13; i++){
+                cum_prob += (unsigned long int)
+                            markov_notes[curr_note][prev_note][prev_prev_note][i];
+//                printf("Markov Value is is %d\n", markov_notes[curr_note][prev_note][prev_prev_note][i]);
+                if(cum_prob >= random_num){
+//                    printf("Markov Thread. Next Note Pitch %d\n", next_note);
+                    next_notea = i;
+                    break;
+                }
+            }
+            
+            cum_prob = 0;
+            random_num = rand() % 255; //255*17
+            for (i=0; i<4; i++){
+                cum_prob += (unsigned long int)
+                            markov_octave[curr_note][prev_note][curr_octave][prev_octave][i];
+//                printf("Markov Value is is %d\n", markov_notes[curr_note][prev_note][prev_prev_note][i]);
+                if(cum_prob >= random_num){
+//                    printf("Markov Thread. Next Note Pitch %d\n", next_note);
+                    next_octave = i;
+                    break;
+                }
+            }
+            
+            cum_prob = 0;
+            random_num = rand() % 255; //255*17
+            for (i=0; i<4; i++){
+                cum_prob += (unsigned long int)
+                            markov_octave[curr_note][prev_note][curr_octave][prev_octave][i];
+//                printf("Markov Value is is %d\n", markov_notes[curr_note][prev_note][prev_prev_note][i]);
+                if(cum_prob >= random_num){
+//                    printf("Markov Thread. Next Note Pitch %d\n", next_note);
+                    next_octavea = i;
+                    break;
+                }
+            }
+            
             
             // NEVER exit while
       } // END WHILE(1)
@@ -461,6 +557,79 @@ static PT_THREAD (protothread_tick(struct pt *pt))
   PT_END(pt);
 } // thread 4
 
+
+// === Buttons thread ==========================================================
+// process buttons from Python to play music
+static PT_THREAD (protothread_music(struct pt *pt))
+{
+    PT_BEGIN(pt);
+    while(1){
+        PT_YIELD_UNTIL(pt,tempo_v1_flag==1);
+        if (play_music && note_count < 100){
+            printf("Music thread. Next Note Duration is %d\n", next_note_duration);
+            
+            prev_prev_note_duration = prev_note_duration;
+            prev_note_duration = curr_note_duration;
+            curr_note_duration = next_note_duration;
+            
+            prev_prev_note =  prev_note;
+            prev_note = curr_note;
+            curr_note = next_note;             
+            
+            prev_octave =  curr_octave;
+            curr_octave = next_octave;
+            
+            curr_notea = next_notea;
+            
+            curr_octavea = next_octavea;
+
+            phase_incr_fm = freq_fm[current_v1_synth]*notesDEF[curr_note + 12 * curr_octave]*(float)two32/Fs; 
+            phase_incr_main = freq_main[current_v1_synth]*notesDEF[curr_note + 12 * curr_octave]*(float)two32/Fs;
+            
+            phase_incr_fma = freq_fm[current_v1_synth]*notesDEF[curr_notea + 12 * curr_octavea]*(float)two32/Fs; 
+            phase_incr_maina = freq_main[current_v1_synth]*notesDEF[curr_notea + 12 * curr_octavea]*(float)two32/Fs; 
+            markov_trigger = 1;
+            play_trigger = 1;
+            tempo_v1_flag = 0;
+            note_count++;
+        }
+            
+    } // END WHILE(1)   
+    PT_END(pt);  
+} // thread blink
+
+
+// === Buttons thread ==========================================================
+// process buttons from Python to play and stop music
+static PT_THREAD (protothread_buttons(struct pt *pt))
+{
+    PT_BEGIN(pt);
+    while(1){
+        PT_YIELD_UNTIL(pt, new_button==1);
+        // clear flag
+        printf("button thread value %d", button_value);
+        new_button = 0;   
+        // Button one -- Play
+        if (button_id==1 && button_value==1) {
+            play_music = 1;
+            tempo_v1_count = 0;
+            tempo_v1_flag = 0;
+            note_count = 0;
+            printf("play notes\n");
+           break;
+        }
+        // Button 2 -- Stop
+        if (button_id==2 && button_value==1) {
+            play_music = 0; //stop
+            printf("STOP");
+        }
+//        if (button_id == 3 && button_value == 1) {
+//            isr_counter = 0;
+//            dds_state = 2;
+//        }
+    } // END WHILE(1)   
+    PT_END(pt);  
+} // thread blink
 
 // === Python serial thread ====================================================
 // you should not need to change this thread UNLESS you add new control types
@@ -502,14 +671,15 @@ static PT_THREAD (protothread_serial(struct pt *pt))
 //            toggle_value = PT_term_buffer[3] - '0';
 //        }
 //        
-//        // pushbutton
-//        if (PT_term_buffer[0]=='b'){
-//            // signal the button thread
-//            new_button = 1;
-//            // subtracting '0' converts ascii to binary for 1 character
-//            button_id = (PT_term_buffer[1] - '0')*10 + (PT_term_buffer[2] - '0');
-//            button_value = PT_term_buffer[3] - '0';
-//        }
+        // pushbutton
+        if (PT_term_buffer[0]=='b'){
+            // signal the button thread
+            new_button = 1;
+            // subtracting '0' converts ascii to binary for 1 character
+            button_id = (PT_term_buffer[1] - '0')*10 + (PT_term_buffer[2] - '0');
+            button_value = PT_term_buffer[3] - '0';
+//            printf("Button id %d and value %d",button_id,button_value);
+        }
 //        
 //        // slider
 //        if (PT_term_buffer[0]=='s'){
@@ -518,7 +688,6 @@ static PT_THREAD (protothread_serial(struct pt *pt))
 //        }
         
 //        // listbox
-        //TODO: Use this for instrument selection later!!
         if (PT_term_buffer[0]=='l'){
             new_list = 1;
             list_id = PT_term_buffer[2] - '0' ;
@@ -603,7 +772,8 @@ int main(void)
 //   pt_add(protothread_python_string, 0);
   pt_add(protothread_tick, 0);
   pt_add(protothread_markov, 0);
-  
+  pt_add(protothread_buttons, 0);
+  pt_add(protothread_music,0);
   // === initalize the scheduler ====================
   PT_INIT(&pt_sched) ;
   // >>> CHOOSE the scheduler method: <<<

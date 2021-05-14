@@ -60,12 +60,10 @@ ser = serial.Serial('COM4', 115200, timeout=0.001)  # open serial port 38400
 #   where 'N' is a digit 0-9 defining the listbox number
 #   Listbox as implemented can have only one selected value 
 font_spec = 'Courier 24 bold'
-heading_color = '#2FB8AD'
-layout = [  [sg.Text('Cardinal Birdsong Primitives',  background_color=heading_color)],
-            [sg.RealtimeButton('Swoop', key='pushbut01', font='Helvetica 12'),
-			 sg.RealtimeButton('Chirp', key='pushbut02', font='Helvetica 12'),
-			 sg.RealtimeButton('Pause', key='pushbut03', font='Helvetica 12'),
-             sg.Checkbox('Record Mode', key='toggle01', font='Helvetica 12',enable_events=True)],
+heading_color = '#4b188f'
+layout = [  [sg.Text('Markov Song Generator',  background_color=heading_color)],
+            [sg.RealtimeButton('Play A Song', key='pushbut01', font='Helvetica 12'),
+			 sg.RealtimeButton('Stop', key='pushbut02', font='Helvetica 12')],
 			 
             #
             [sg.Text('Serial data to PIC', background_color=heading_color)],
@@ -86,17 +84,17 @@ layout = [  [sg.Text('Cardinal Birdsong Primitives',  background_color=heading_c
          ]
 
 # change the colors in any way you like.
-sg.SetOptions(background_color='#9FB8AD',
-       text_element_background_color='#9FB8AD',
+sg.SetOptions(background_color='#692c00',
+       text_element_background_color='#692c00',
        element_background_color='#475841',#'#9FB8AD',
        scrollbar_color=None,
-       input_elements_background_color='#9FB8AD',#'#F7F3EC',
+       input_elements_background_color='#692c00',#'#F7F3EC',
        progress_meter_color = ('green', 'blue'),
        button_color=('white','#475841'),
        )
 
 # Create the Window
-window = sg.Window('ECE4760 Interface', layout, location=(0,0), 
+window = sg.Window('Markov Song Generator', layout, location=(0,0), 
                     return_keyboard_events=True, use_default_focus=True,
                     element_justification='c', finalize=True)
 
@@ -104,7 +102,8 @@ window = sg.Window('ECE4760 Interface', layout, location=(0,0),
 # https://github.com/PySimpleGUI/PySimpleGUI/issues/2020
 window['pushbut01'].bind('<ButtonRelease-1>', 'r')
 window['pushbut02'].bind('<ButtonRelease-1>', 'r')
-window['pushbut03'].bind('<ButtonRelease-1>', 'r')
+#window['pushbut03'].bind('<ButtonRelease-1>', 'r')
+
 # Event Loop to process "events" 
 # event is set by window.read
 event = 0
