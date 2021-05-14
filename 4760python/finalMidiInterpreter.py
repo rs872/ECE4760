@@ -12,7 +12,7 @@ processed_data_csv = os.path.join(curr_path, "processed_data.csv") #Contains: No
 markov_note_file = os.path.join(curr_path, "MarkovNote.txt") #Markov chains generated for notes-to be added to header file in PIC32
 markov_duration_file = os.path.join(curr_path, "MarkovDuration.txt") #Markov chains generated for duration-to be added to header file in PIC32
 markov_octave_file = os.path.join(curr_path, "MarkovOctave.txt") #Markov chains generated for ocatve-to be added to header file in PIC32
-
+seeds_file = os.path.join(curr_path, "Seeds.txt") #Seeds that determine the notes, durations and octaves to start the algorithm from
 
 #create numpy array that is 13x13x13x13 for notes and 8x8x8x8 for duration. All populated by 0s
 markov_note = np.full((12,12,12,12),0) 
@@ -20,7 +20,7 @@ markov_octave = np.full((12,12,4,4,4),0) #n^6 and we have n = 4 octaves (Current
 markov_duration = np.full((8,8,8,8),0)
 
 #Parse midi file and convert to CSV
-directory = os.path.join(curr_path, 'training-data')
+directory = os.path.join(curr_path, 'training-data-temp')
 for filename in os.listdir(directory):
     if filename.endswith(".mid") or filename.endswith(".midi"):
         midiFile = os.path.join(directory, filename)
@@ -216,6 +216,8 @@ for filename in os.listdir(directory):
     else:
         continue
 
+
+note_seeds = []
 markov_note_dim = 12
 for i in range(markov_note_dim):
     for j in range(markov_note_dim):
@@ -225,10 +227,12 @@ for i in range(markov_note_dim):
                 accumulator += markov_note[i, j, k, l]
             if (accumulator != 0):
                 print((i,j,k))
+                note_seeds.append([i,j,k])
                 for t in range(markov_note_dim):
                     markov_note[i, j, k, t] = 255 * markov_note[i, j, k, t]
                     markov_note[i, j, k, t] = int(markov_note[i, j, k, t] / accumulator)
 
+duration_seeds = []
 markov_duration_dim = 8
 for i in range(markov_duration_dim):
     for j in range(markov_duration_dim):
@@ -238,11 +242,12 @@ for i in range(markov_duration_dim):
                 accumulator += markov_duration[i, j, k, l]
             if (accumulator != 0):
                 print('hi')
-                print((i,j,k))
+                duration_seeds.append([i,j,k])
                 for t in range(markov_duration_dim):
                     markov_duration[i, j, k, t] = 255 * markov_duration[i, j, k, t]
                     markov_duration[i, j, k, t] = int(markov_duration[i, j, k, t] / accumulator)
 
+octave_seeds = []
 markov_octave_dim = 4
 for i in range(markov_note_dim):
     for j in range(markov_note_dim):
@@ -252,12 +257,12 @@ for i in range(markov_note_dim):
                 for m in range(markov_octave_dim):
                     accumulator += markov_octave[i, j, k, l, m]
                 if (accumulator != 0):
-                    print('hi again')
-                    print((i, j, k, l))
+                    octave_seeds.append([i,j,k,l])
                     for t in range(markov_octave_dim):
                         markov_octave[i, j, k, l, t] = 255 * markov_octave[i, j, k, l, t]
                         markov_octave[i, j, k, l, t] = int(markov_octave[i, j, k, l, t] / accumulator)
                 
+seeds = np.array((note_seeds, duration_seeds, octave_seeds))
 
 f= open(markov_note_file,"w+")
 
@@ -285,8 +290,30 @@ y = x.replace(']','}')
 f.write(y)
 
 f.close()
-    
 
+f= open(seeds_file,"w+")
+
+coolString = np.array2string(np.array(note_seeds),threshold = np.sys.maxsize,separator=',')
+x = coolString.replace('[','{')
+y = x.replace(']','}')
+f.write('const unsigned char note_seeds [' + str(len(note_seeds)) + ']\n')
+f.write(y)
+
+coolString = np.array2string(np.array(duration_seeds),threshold = np.sys.maxsize,separator=',')
+x = coolString.replace('[','{')
+y = x.replace(']','}')
+f.write('\nconst unsigned char duration_seeds [' + str(len(duration_seeds)) + ']\n')
+f.write(y)
+
+coolString = np.array2string(np.array(octave_seeds),threshold = np.sys.maxsize,separator=',')
+x = coolString.replace('[','{')
+y = x.replace(']','}')
+f.write('\nconst unsigned char octave_seeds [' + str(len(octave_seeds)) + ']\n')
+f.write(y)
+
+
+f.close()
+    
 
 processed_data_df = pd.DataFrame(processed_data)
 
