@@ -20,7 +20,7 @@ markov_octave = np.full((12,12,4,4,4),0) #n^6 and we have n = 4 octaves (Current
 markov_duration = np.full((12,8,8,8),0)
 
 #Parse midi file and convert to CSV
-directory = os.path.join(curr_path, 'training-data-temp')
+directory = os.path.join(curr_path, 'training-data')
 for filename in os.listdir(directory):
     if filename.endswith(".mid") or filename.endswith(".midi"):
         midiFile = os.path.join(directory, filename)
