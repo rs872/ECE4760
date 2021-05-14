@@ -231,7 +231,7 @@ for i in range(markov_note_dim):
             for l in range(markov_note_dim):
                 accumulator += markov_note[i, j, k, l]
             if (accumulator != 0):
-                print((i,j,k))
+                #print((i,j,k))
                 for t in range(markov_note_dim):
                     markov_note[i, j, k, t] = 255 * markov_note[i, j, k, t]
                     markov_note[i, j, k, t] = int(markov_note[i, j, k, t] / accumulator)
@@ -244,8 +244,8 @@ for i in range(markov_note_dim):
             for m in range(markov_duration_dim):
                 accumulator += markov_duration[i, k, l, m]
             if (accumulator != 0):
-                print('hi')
-                print((i,k,l))
+                #print('hi')
+                #print((i,k,l))
                 for t in range(markov_duration_dim):
                     markov_duration[i, k, l, t] = 255 * markov_duration[i, k, l, t]
                     markov_duration[i, k, l, t] = int(markov_duration[i, k, l, t] / accumulator)
@@ -259,8 +259,8 @@ for i in range(markov_note_dim):
                 for m in range(markov_octave_dim):
                     accumulator += markov_octave[i, j, k, l, m]
                 if (accumulator != 0):
-                    #print('hi again')
-                    #print((k, l))
+                    print('hi again')
+                    print((k, l))
                     for t in range(markov_octave_dim):
                         markov_octave[i, j, k, l, t] = 255 * markov_octave[i, j, k, l, t]
                         markov_octave[i, j, k, l, t] = int(markov_octave[i, j, k, l, t] / accumulator)
