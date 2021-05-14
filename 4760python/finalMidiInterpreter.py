@@ -234,7 +234,7 @@ for i in range(markov_note_dim):
                     markov_note[i, j, k, t] = int(markov_note[i, j, k, t] / accumulator)
 
 markov_duration_dim = 8
-for i in range(markov_duration_dim):
+for i in range(markov_note_dim):
     for j in range(markov_duration_dim):
         for k in range(markov_duration_dim):
             for l in range(markov_duration_dim):
