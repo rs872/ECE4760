@@ -168,15 +168,15 @@ for filename in os.listdir(directory):
                                     prev_x2_markov_index_n = (int(prev_x2_note[prev_x2_note_index] - 48)) % 12
                                     prev_x3_markov_index_n = (int(prev_x3_note[prev_x3_note_index] - 48)) % 12
                                     
-                                    for curr_note_index_2 in range(len(curr_note)):
-                                        curr_markov_index_d = int(curr_duration[curr_note_index_2] / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
+                                    for prev_note_index_2 in range(len(prev_note)):
+                                        curr_markov_index_d = int(curr_duration[curr_note_index] / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
                                         prev_markov_index_d = int(prev_duration[prev_note_index] / 0.125) - 1
                                         prev_x2_markov_index_d = int(prev_x2_duration[prev_x2_note_index] / 0.125) - 1
                                         prev_x3_markov_index_d = int(prev_x3_duration[prev_x3_note_index] / 0.125) - 1
 
-                                        curr_markov_index_n_2 = (int(curr_note[curr_note_index_2] - 48)) % 12
+                                        prev_markov_index_n_2 = (int(prev_note[prev_note_index_2] - 48)) % 12
 
-                                        markov_duration[curr_markov_index_n_2][prev_markov_index_d][prev_x2_markov_index_d][prev_x3_markov_index_d][curr_markov_index_d] += 1
+                                        markov_duration[prev_markov_index_n_2][prev_markov_index_d][prev_x2_markov_index_d][prev_x3_markov_index_d][curr_markov_index_d] += 1
 
 
                                     markov_note[prev_markov_index_n, prev_x2_markov_index_n, prev_x3_markov_index_n, curr_markov_index_n] += 1
