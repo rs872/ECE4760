@@ -194,9 +194,9 @@ for filename in os.listdir(directory):
                     for prev_x2_duration_index in range(len(prev_x2_duration)):
                         for curr_duration_index in range(len(curr_duration)):
                             for prev_note_index_2 in range(len(prev_note)):
-                                curr_markov_index_d = int(curr_duration[curr_note_index] / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
-                                prev_markov_index_d = int(prev_duration[prev_note_index] / 0.125) - 1
-                                prev_x2_markov_index_d = int(prev_x2_duration[prev_x2_note_index] / 0.125) - 1
+                                curr_markov_index_d = int(curr_duration[curr_duration_index] / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
+                                prev_markov_index_d = int(prev_duration[prev_duration_index] / 0.125) - 1
+                                prev_x2_markov_index_d = int(prev_x2_duration[prev_x2_duration_index] / 0.125) - 1
 
                                 prev_markov_index_n_2 = (int(prev_note[prev_note_index_2] - 48)) % 12
                                 markov_duration[prev_markov_index_n_2][prev_markov_index_d][prev_x2_markov_index_d][curr_markov_index_d] += 1
