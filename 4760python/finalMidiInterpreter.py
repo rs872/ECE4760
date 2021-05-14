@@ -17,7 +17,7 @@ markov_octave_file = os.path.join(curr_path, "MarkovOctave.txt") #Markov chains 
 #create numpy array that is 13x13x13x13 for notes and 8x8x8x8 for duration. All populated by 0s
 markov_note = np.full((12,12,12,12),0) 
 markov_octave = np.full((12,12,4,4,4),0) #n^6 and we have n = 4 octaves (Current octave depends on 3 notes and 2 past octaves)
-markov_duration = np.full((8,8,8,8),0)
+markov_duration = np.full((12,8,8,8,8),0)
 
 #Parse midi file and convert to CSV
 directory = os.path.join(curr_path, 'training-data')
@@ -168,15 +168,19 @@ for filename in os.listdir(directory):
                                     prev_x2_markov_index_n = (int(prev_x2_note[prev_x2_note_index] - 48)) % 12
                                     prev_x3_markov_index_n = (int(prev_x3_note[prev_x3_note_index] - 48)) % 12
                                     
+                                    for curr_note_index_2 in range(len(curr_note)):
+                                        curr_markov_index_d = int(curr_duration[curr_note_index_2] / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
+                                        prev_markov_index_d = int(prev_duration[prev_note_index] / 0.125) - 1
+                                        prev_x2_markov_index_d = int(prev_x2_duration[prev_x2_note_index] / 0.125) - 1
+                                        prev_x3_markov_index_d = int(prev_x3_duration[prev_x3_note_index] / 0.125) - 1
 
-                                    curr_markov_index_d = int(curr_duration[curr_note_index] / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
-                                    prev_markov_index_d = int(prev_duration[prev_note_index] / 0.125) - 1
-                                    prev_x2_markov_index_d = int(prev_x2_duration[prev_x2_note_index] / 0.125) - 1
-                                    prev_x3_markov_index_d = int(prev_x3_duration[prev_x3_note_index] / 0.125) - 1
+                                        curr_markov_index_n_2 = (int(curr_note[curr_note_index_2] - 48)) % 12
+
+                                        markov_duration[curr_markov_index_n_2][prev_markov_index_d][prev_x2_markov_index_d][prev_x3_markov_index_d][curr_markov_index_d] += 1
 
 
                                     markov_note[prev_markov_index_n, prev_x2_markov_index_n, prev_x3_markov_index_n, curr_markov_index_n] += 1
-                                    markov_duration[prev_markov_index_d][prev_x2_markov_index_d][prev_x3_markov_index_d][curr_markov_index_d] += 1
+                                    
       
                                         
                                 except:
@@ -233,15 +237,16 @@ markov_duration_dim = 8
 for i in range(markov_duration_dim):
     for j in range(markov_duration_dim):
         for k in range(markov_duration_dim):
-            accumulator = 0
             for l in range(markov_duration_dim):
-                accumulator += markov_duration[i, j, k, l]
-            if (accumulator != 0):
-                print('hi')
-                print((i,j,k))
-                for t in range(markov_duration_dim):
-                    markov_duration[i, j, k, t] = 255 * markov_duration[i, j, k, t]
-                    markov_duration[i, j, k, t] = int(markov_duration[i, j, k, t] / accumulator)
+                accumulator = 0
+                for m in range(markov_duration_dim):
+                    accumulator += markov_duration[i, j, k, l, m]
+                if (accumulator != 0):
+                    print('hi')
+                    print((i,j,k,l))
+                    for t in range(markov_duration_dim):
+                        markov_duration[i, j, k, l, t] = 255 * markov_duration[i, j, k, l, t]
+                        markov_duration[i, j, k, l, t] = int(markov_duration[i, j, k, l, t] / accumulator)
 
 markov_octave_dim = 4
 for i in range(markov_note_dim):
