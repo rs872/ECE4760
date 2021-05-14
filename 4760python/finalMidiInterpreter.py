@@ -250,7 +250,7 @@ for i in range(markov_note_dim):
             if (accumulator != 0):
                 #print('hi')
                 #print((i,k,l))
-                note_seeds.append([k,l])
+                duration_seeds.append([k,l])
                 for t in range(markov_duration_dim):
                     markov_duration[i, k, l, t] = 255 * markov_duration[i, k, l, t]
                     markov_duration[i, k, l, t] = int(markov_duration[i, k, l, t] / accumulator)
@@ -270,7 +270,7 @@ for i in range(markov_note_dim):
                         markov_octave[i, j, k, l, t] = 255 * markov_octave[i, j, k, l, t]
                         markov_octave[i, j, k, l, t] = int(markov_octave[i, j, k, l, t] / accumulator)
                 
-seeds = np.array((note_seeds, duration_seeds, octave_seeds))
+
 
 f= open(markov_note_file,"w+")
 
@@ -304,20 +304,20 @@ f= open(seeds_file,"w+")
 coolString = np.array2string(np.array(note_seeds),threshold = np.sys.maxsize,separator=',')
 x = coolString.replace('[','{')
 y = x.replace(']','}')
-f.write('const unsigned char note_seeds [' + str(len(note_seeds)) + '] = \n')
-f.write(y)
+f.write('const unsigned char note_seeds [' + str(len(note_seeds)) + '][3] = \n')
+f.write(y+';')
 
 coolString = np.array2string(np.array(duration_seeds),threshold = np.sys.maxsize,separator=',')
 x = coolString.replace('[','{')
 y = x.replace(']','}')
-f.write('\nconst unsigned char duration_seeds [' + str(len(duration_seeds)) + '] = \n')
-f.write(y)
+f.write('\nconst unsigned char duration_seeds [' + str(len(duration_seeds)) + '][2] = \n')
+f.write(y+';')
 
 coolString = np.array2string(np.array(octave_seeds),threshold = np.sys.maxsize,separator=',')
 x = coolString.replace('[','{')
 y = x.replace(']','}')
-f.write('\nconst unsigned char octave_seeds [' + str(len(octave_seeds)) + '] = \n')
-f.write(y)
+f.write('\nconst unsigned char octave_seeds [' + str(len(octave_seeds)) + '][2]= \n')
+f.write(y+';')
 
 
 f.close()
