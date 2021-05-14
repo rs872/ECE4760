@@ -80,7 +80,14 @@ layout = [  [sg.Text('Markov Song Generator',  background_color=heading_color)],
             [ sg.Checkbox('reset_enable', key='r_en', 
                         font='Helvetica 8', enable_events=True),
              sg.Button('RESET PIC', key='rtg', font='Helvetica 8')
-            ] 
+            ],
+			[sg.Radio('Pluck String', "radio1", default=True, key='radio1_1', enable_events=True),
+             sg.Radio('Low string', "radio1", key='radio1_2', enable_events=True),
+			 sg.Radio('Bass', "radio1", key='radio1_3', enable_events=True)],
+			 [sg.Radio('Mallot', "radio1", key='radio1_5', enable_events=True),	
+			 sg.Radio('Chime', "radio1", key='radio1_7', enable_events=True),
+             sg.Radio('Synth', "radio1", key='radio1_8', enable_events=True)				 
+			 ]			
          ]
 
 # change the colors in any way you like.
