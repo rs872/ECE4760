@@ -277,7 +277,7 @@ f= open(markov_note_file,"w+")
 coolString = np.array2string(markov_note,threshold = np.sys.maxsize,separator=',')
 x = coolString.replace('[','{')
 y = x.replace(']','}')
-f.write(y)
+f.write(y+';')
 
 f.close()
 
@@ -286,7 +286,7 @@ f= open(markov_duration_file,"w+")
 coolString = np.array2string(markov_duration,threshold = np.sys.maxsize,separator=',')
 x = coolString.replace('[','{')
 y = x.replace(']','}')
-f.write(y)
+f.write(y+';')
 
 f.close()
 
@@ -295,7 +295,7 @@ f= open(markov_octave_file,"w+")
 coolString = np.array2string(markov_octave,threshold = np.sys.maxsize,separator=',')
 x = coolString.replace('[','{')
 y = x.replace(']','}')
-f.write(y)
+f.write(y+';')
 
 f.close()
 
