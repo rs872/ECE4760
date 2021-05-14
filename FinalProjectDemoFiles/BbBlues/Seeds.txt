@@ -1,13 +1,16 @@
-const unsigned char note_seeds [3][3] = 
-{{5,3,0},
- {6,5,3},
- {7,6,5}};
-const unsigned char duration_seeds [4][2] = 
+const unsigned char note_seeds [4][3] = 
+{{ 5, 3, 0},
+ { 6, 5, 3},
+ { 7, 6, 5},
+ {10, 7, 6}};
+const unsigned char duration_seeds [5][2] = 
 {{3,3},
  {3,3},
  {3,3},
+ {3,3},
  {3,3}};
-const unsigned char octave_seeds [3][2]= 
+const unsigned char octave_seeds [4][2]= 
 {{0,0},
+ {0,0},
  {0,0},
  {0,0}};

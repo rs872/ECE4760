@@ -76,7 +76,7 @@ for filename in os.listdir(directory):
                 on_or_off = on_or_off.strip() #remove whitespace
 
             #skips over rows that don't contain note_on_c or note_off_c or have notes out of range from our implementation
-            if ((on_or_off != 'Note_on_c' and on_or_off != 'Note_off_c') or int(endMidi[index][2]) < 48 or int(endMidi[index][2]) > 95):
+            if ((on_or_off != 'Note_on_c' and on_or_off != 'Note_off_c') or int(endMidi[index][2]) < 24 or int(endMidi[index][2]) > 71):
                 continue
             
             #get velocity, having a note on with velocity = 0 is equivalent to note_off
