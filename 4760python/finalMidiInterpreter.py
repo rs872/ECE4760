@@ -247,18 +247,25 @@ for filename in os.listdir(directory):
         continue
 
 
+#here we loop through the transition matrices to normalize the values to 255
+#we normalize to 255 because numbers upto 255 can be expressed as char that are a single byte vs the four bytes for an int.
+#this saves space on the PIC.
+
 note_seeds = []
 markov_note_dim = 12
 for i in range(markov_note_dim):
     for j in range(markov_note_dim):
         for k in range(markov_note_dim):
+            #the accumulator variable for normalization
             accumulator = 0
             for l in range(markov_note_dim):
                 accumulator += markov_note[i, j, k, l]
             if (accumulator != 0):
                 print((i,j,k))
+                #appending the seeds -- the non zero probability points to start our music generation from on the PIC.
                 note_seeds.append([i,j,k])
                 for t in range(markov_note_dim):
+                    #once we have the accumulator value, loop through all the elements of the last row and normalize to 255.
                     markov_note[i, j, k, t] = 255 * markov_note[i, j, k, t]
                     markov_note[i, j, k, t] = int(markov_note[i, j, k, t] / accumulator)
 
