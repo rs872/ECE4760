@@ -105,18 +105,20 @@ for filename in os.listdir(directory):
                         processed_data[index2][3] *= 8
                         #now round to a decimal
                         processed_data[index2][3] = round(processed_data[index2][3]) 
-                        if (processed_data[index2][3] == 0): #if
+                        if (processed_data[index2][3] == 0): #if the note type is below an eighth, make it an eighth.
                             processed_data[index2][3] = 1
-                        if (processed_data[index2][3] > 8):
+                        if (processed_data[index2][3] > 8): #if the note type is longer than a full note, reduce it to a note.
                             processed_data[index2][3] = 8
-                        processed_data[index2][3] /= 8
+                        processed_data[index2][3] /= 8 #Divide by 8 to bring back to decimal values.
                         break
 
         processed_data_df = pd.DataFrame(processed_data)
         processed_data_df.to_csv(processed_data_csv, index = False)
         # savetxt(processed_data_csv, processed_data, delimiter=',')
 
-
+    
+        #instantiate the note, duration and octave pipelines. 
+        
         curr_note = None
         prev_note = None
         prev_x2_note = None
@@ -131,16 +133,25 @@ for filename in os.listdir(directory):
         prev_octave = None
         prev_x2_octave = None
         
+        #go through each row of the processed_data array
         for note_array_index in range(len(processed_data)):
             
+            #note down the current time to figure out which notes need to be looked at together
             curr_start_time = int(processed_data[note_array_index][1])
             #Note Parallel Algo
             curr_note = []
             curr_duration = []
             curr_octave = []
+            #from the current index in the processed data, iterate down the processed_data array to add notes, 
+            #durations and octaves that all start at the same time
             for note_array_index_2 in range(note_array_index,len(processed_data)-note_array_index):
+                #check if the start time of the note at note_array_index_2 is equal to the start time of the note at note_array_index.
+                #if not, break.
                 if(processed_data[note_array_index_2][1] != curr_start_time):
                     break
+                #if it is, add note, duration and octave to their respective arrays.
+                #the octave is essentially a value between 0 and 3 inclusive
+                #using try-catch block since we saw some errors attributed to 'bad' csv lines.
                 try:
                     temp_note = int(processed_data[note_array_index_2][0])
                     curr_note.append(temp_note)
@@ -148,63 +159,15 @@ for filename in os.listdir(directory):
                     #this gives the octave of the current note relative to our lowest note
                     curr_octave.append(int((temp_note - 48)/ 12))
 
-                # print("This is going in curr_octaves " + str(int((processed_data[note_array_index_2] - 48) / 12)))
+      
                     
                 except:
                     print('in except')
                     continue
-
-
-            ###This loop is 4D because it loops through the past 4 states of our chain which goes through the entire song. This makes concurrently
-            # played notes get counted properly in our giant accumulator###
-            if (prev_x3_note != None):
-                for prev_note_index in range(len(prev_note)):
-                    for prev_x2_note_index in range(len(prev_x2_note)):
-                        for prev_x3_note_index in range(len(prev_x3_note)):
-                            for curr_note_index in range(len(curr_note)):
-                                try:
-                                    curr_markov_index_n = (int(curr_note[curr_note_index] - 48)) % 12
-                                    prev_markov_index_n = (int(prev_note[prev_note_index] - 48)) % 12
-                                    prev_x2_markov_index_n = (int(prev_x2_note[prev_x2_note_index] - 48)) % 12
-                                    prev_x3_markov_index_n = (int(prev_x3_note[prev_x3_note_index] - 48)) % 12
-                                    
-                                    markov_note[prev_markov_index_n, prev_x2_markov_index_n, prev_x3_markov_index_n, curr_markov_index_n] += 1
-                                    
-      
-                                        
-                                except:
-                                    continue
-
-                        for curr_octave_index in range(len(curr_octave)):
-                            for prev_octave_index in range(len(prev_octave)):
-                                for prev_x2_octave_index in range(len(prev_x2_octave)):
-                                    prev_markov_index_n = (int(prev_note[prev_note_index] - 48)) % 12
-
-                                    prev_x2_markov_index_n = (int(prev_x2_note[prev_x2_note_index] - 48)) % 12
-
-                                    curr_octave_n =  curr_octave[curr_octave_index]
-                                    prev_octave_n =  prev_octave[prev_octave_index]
-                                    prev_x2_octave_n = prev_x2_octave[prev_x2_octave_index]            
-
-
-                                    markov_octave[prev_markov_index_n, prev_x2_markov_index_n, prev_octave_n, prev_x2_octave_n, curr_octave_n] += 1 
             
-            if (prev_x2_duration != None):
-                for prev_duration_index in range(len(prev_duration)):
-                    for prev_x2_duration_index in range(len(prev_x2_duration)):
-                        for curr_duration_index in range(len(curr_duration)):
-                            for prev_note_index_2 in range(len(prev_note)):
-                                curr_markov_index_d = int(curr_duration[curr_duration_index] / 0.125) - 1 #shortest note is 0.125 but lowest index is 0; longest note is 1 but largest index is 7
-                                prev_markov_index_d = int(prev_duration[prev_duration_index] / 0.125) - 1
-                                prev_x2_markov_index_d = int(prev_x2_duration[prev_x2_duration_index] / 0.125) - 1
-
-                                prev_markov_index_n_2 = (int(prev_note[prev_note_index_2] - 48)) % 12
-                                markov_duration[prev_markov_index_n_2][prev_markov_index_d][prev_x2_markov_index_d][curr_markov_index_d] += 1
-
-
-
-       
-
+            
+            #just propogate the chain. This will update the notes, durations and octaves at every time step. 
+            #the loops below use this information to update the markov transition matrices.
             
             #notes
             prev_x3_note = prev_x2_note
@@ -219,7 +182,67 @@ for filename in os.listdir(directory):
             #octaves
             prev_x2_octave = prev_octave
             prev_octave = curr_octave
+            
+            ### THIS LOOP UPDATES THE TRANSITION MATRICES FOR ALL MARKOV CHAINS ###
 
+            #if the pipeline of notes is not filled, skip updating the matrices
+            if (prev_x3_note != None):
+                #at this point, all the current arrays contain atleast a single element, and potentially more than one element. 
+                #the goal for this note 4D loop is to find all permutations of the past three notes with the current note and update the 
+                #12x12x12x12 matrix for each of the combinations.
+                for prev_note_index in range(len(prev_note)):
+                    for prev_x2_note_index in range(len(prev_x2_note)):
+                        for prev_x3_note_index in range(len(prev_x3_note)):
+                            for curr_note_index in range(len(curr_note)):
+                                try:
+                                    #We subtract by 48 in order to normalize for the lowest note Midi number which is 48. After subtracting from 48 and 
+                                    #modding with 12, we essentially get an index value for each note. Thus each note is able to correspond to a particular index 
+                                    #value that we are able to increment.......
+                                    curr_markov_index_n = (int(curr_note[curr_note_index] - 48)) % 12
+                                    prev_markov_index_n = (int(prev_note[prev_note_index] - 48)) % 12
+                                    prev_x2_markov_index_n = (int(prev_x2_note[prev_x2_note_index] - 48)) % 12
+                                    prev_x3_markov_index_n = (int(prev_x3_note[prev_x3_note_index] - 48)) % 12
+                                    
+                                    #.....here!
+                                    markov_note[prev_markov_index_n, prev_x2_markov_index_n, prev_x3_markov_index_n, curr_markov_index_n] += 1
+                                    
+      
+                                        
+                                except:
+                                    continue
+                        
+                        #since the octaves depend on the past two octaves and the past two notes, we do the same.
+                        #take note that we make sure that the current note and prev_x3_note calculation is done before we udpate the octave 
+                        #markov because the octave markov only depends on the prev 2 notes, not prev 3. 
+                        for curr_octave_index in range(len(curr_octave)):
+                            for prev_octave_index in range(len(prev_octave)):
+                                for prev_x2_octave_index in range(len(prev_x2_octave)):
+                                    
+                                    #these two lines are essentially the same as the ones we wrote when updating the note markov chain above.
+                                    prev_markov_index_n = (int(prev_note[prev_note_index] - 48)) % 12
+                                    prev_x2_markov_index_n = (int(prev_x2_note[prev_x2_note_index] - 48)) % 12
+
+                                    curr_octave_n =  curr_octave[curr_octave_index]
+                                    prev_octave_n =  prev_octave[prev_octave_index]
+                                    prev_x2_octave_n = prev_x2_octave[prev_x2_octave_index]            
+
+                                    markov_octave[prev_markov_index_n, prev_x2_markov_index_n, prev_octave_n, prev_x2_octave_n, curr_octave_n] += 1 
+                                   
+            #do the same for duration markov as well..
+            if (prev_x2_duration != None):
+                for prev_duration_index in range(len(prev_duration)):
+                    for prev_x2_duration_index in range(len(prev_x2_duration)):
+                        for curr_duration_index in range(len(curr_duration)):
+                            for prev_note_index_2 in range(len(prev_note)):
+                                #We haven't been too smart with variable naming here, so excuse that :)
+                                #We subtract by 1 because after dividing by 0.125, if the result is 1, then it should actually index into value 0
+                                #and if the value is a 8 (0.125 * 8 = 1), then the increment should be made at index 8.
+                                curr_markov_index_d = int(curr_duration[curr_duration_index] / 0.125) - 1 
+                                prev_markov_index_d = int(prev_duration[prev_duration_index] / 0.125) - 1
+                                prev_x2_markov_index_d = int(prev_x2_duration[prev_x2_duration_index] / 0.125) - 1
+                                prev_markov_index_n_2 = (int(prev_note[prev_note_index_2] - 48)) % 12
+                                markov_duration[prev_markov_index_n_2][prev_markov_index_d][prev_x2_markov_index_d][curr_markov_index_d] += 1
+          
     else:
         continue
 
