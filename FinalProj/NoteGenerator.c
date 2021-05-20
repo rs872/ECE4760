@@ -402,7 +402,6 @@ static PT_THREAD (protothread_cmd(struct pt *pt))
                  case 'c': // value is seed index
                      if (receive_string[1]=='t') {
                      // value is tempo index 0-3
-                         printf("Tempo Changed\n");
                         current_v1_tempo = (int)(value);
                      }
                      //change the seed of the markov chain 
@@ -500,23 +499,6 @@ static PT_THREAD (protothread_markov(struct pt *pt))
   PT_END(pt);
 } // thread 4
 
-
-// === Thread 6 ======================================================
-// update a 1 second tick counter
-static PT_THREAD (protothread_tick(struct pt *pt))
-{
-    PT_BEGIN(pt);
-
-      while(1) {
-            // yield time 1 second
-            PT_YIELD_TIME_msec(1000) ;
-            sys_time_seconds++ ;
-            rand_raw = rand();
-            // NEVER exit while
-      } // END WHILE(1)
-  PT_END(pt);
-} // thread 4
-
 // ===  radio thread =========================================================
 // process listbox from Python to set instrument to be played
 static PT_THREAD (protothread_radio(struct pt *pt))
@@ -602,7 +584,6 @@ static PT_THREAD (protothread_buttons(struct pt *pt))
     while(1){
         PT_YIELD_UNTIL(pt, new_button==1);
         // clear flag
-        printf("button thread value %d", button_value);
         new_button = 0;   
         // Button one -- Play
         if (button_id==1 && button_value==1) {
@@ -610,13 +591,11 @@ static PT_THREAD (protothread_buttons(struct pt *pt))
             tempo_v1_count = 0;
             tempo_v1_flag = 0;
             note_count = 0;
-            printf("play notes\n");
            break;
         }
         // Button 2 -- Stop
         if (button_id==2 && button_value==1) {
             play_music = 0; //stop
-            printf("STOP");
         }
     } // END WHILE(1)   
     PT_END(pt);  
@@ -659,7 +638,7 @@ static PT_THREAD (protothread_serial(struct pt *pt))
             // subtracting '0' converts ascii to binary for 1 character
             button_id = (PT_term_buffer[1] - '0')*10 + (PT_term_buffer[2] - '0');
             button_value = PT_term_buffer[3] - '0';
-//            printf("Button id %d and value %d",button_id,button_value);
+
         }
         
 //        // listbox
@@ -667,7 +646,6 @@ static PT_THREAD (protothread_serial(struct pt *pt))
             new_list = 1;
             list_id = PT_term_buffer[2] - '0' ;
             list_value = PT_term_buffer[3] - '0';
-            //printf("%d %d", list_id, list_value);
         }
         
         // radio group
@@ -675,13 +653,11 @@ static PT_THREAD (protothread_serial(struct pt *pt))
             new_radio = 1;
             radio_group_id = PT_term_buffer[2] - '0' ;
             radio_member_id = PT_term_buffer[3] - '0';
-            //printf("%d %d", radio_group_id, radio_member_id);
         }
         
         // string from python input line
         if (PT_term_buffer[0]=='$'){
             // signal parsing thread
-            printf("new string detected\n");
             new_string = 1;
             // output to thread which parses the string
             // while striping off the '$'
@@ -755,7 +731,6 @@ int main(void)
   
   pt_add(protothread_cmd, 0);
   pt_add(protothread_serial, 0);
-  pt_add(protothread_tick, 0);
   pt_add(protothread_markov, 0);
   pt_add(protothread_buttons, 0);
   pt_add(protothread_music,0);
